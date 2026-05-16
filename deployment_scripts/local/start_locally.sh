@@ -12,14 +12,28 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Check if Python is installed
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Python 3 is not installed. Please install Python 3 first."
+if command -v python3 &> /dev/null; then
+    PYTHON_CMD="python3"
+elif command -v python &> /dev/null; then
+    PYTHON_CMD="python"
+else
+    echo "❌ Python is not installed. Please install Python 3 first."
     exit 1
 fi
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
     echo "❌ Node.js is not installed. Please install Node.js first."
+    exit 1
+fi
+
+# Pick a health-check command that works in Git Bash / Windows setups
+if command -v curl &> /dev/null; then
+    HTTP_CHECK_CMD="curl -s"
+elif command -v powershell &> /dev/null; then
+    HTTP_CHECK_CMD="powershell -Command \"try { (Invoke-WebRequest -UseBasicParsing %s).StatusCode | Out-Null; exit 0 } catch { exit 1 }\""
+else
+    echo "❌ Neither curl nor powershell is available for health checks."
     exit 1
 fi
 
@@ -32,7 +46,7 @@ cleanup() {
     else
         kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
     fi
-    rm -f booking_system_backend/backend.log booking_system_inventory_hold_service/java.log
+    rm -f booking_system_backend/backend.log inventory_hold_service/java.log
     exit 0
 }
 
@@ -65,24 +79,39 @@ cd booking_system_backend
 # Check if virtual environment exists, create if not
 if [ ! -d ".venv" ]; then
     echo "Creating Python virtual environment..."
-    python3 -m venv .venv
+    "$PYTHON_CMD" -m venv .venv
 fi
 
 # Activate virtual environment and install dependencies
-source .venv/bin/activate
+if [ -f ".venv/Scripts/activate" ]; then
+    source .venv/Scripts/activate
+    VENV_PYTHON=".venv/Scripts/python.exe"
+else
+    source .venv/bin/activate
+    VENV_PYTHON=".venv/bin/python"
+fi
 pip install -q -r requirements.txt
 
 # Start backend server in background using venv Python
-.venv/bin/python server.py > backend.log 2>&1 &
+"$VENV_PYTHON" server.py > backend.log 2>&1 &
 BACKEND_PID=$!
 
 # Wait for backend to start and verify
-sleep 3
-if ! curl -s http://localhost:8001/ > /dev/null 2>&1; then
-    echo "❌ Backend failed to start. Check backend.log for errors:"
-    cat backend.log
-    kill $BACKEND_PID 2>/dev/null
-    exit 1
+sleep 5
+if command -v curl &> /dev/null; then
+    if ! curl -s http://localhost:8001/ > /dev/null 2>&1; then
+        echo "❌ Backend failed to start. Check backend.log for errors:"
+        cat backend.log
+        kill $BACKEND_PID 2>/dev/null
+        exit 1
+    fi
+else
+    if ! powershell -Command "try { (Invoke-WebRequest -UseBasicParsing http://localhost:8001/).StatusCode | Out-Null; exit 0 } catch { exit 1 }"; then
+        echo "❌ Backend failed to start. Check backend.log for errors:"
+        cat backend.log
+        kill $BACKEND_PID 2>/dev/null
+        exit 1
+    fi
 fi
 
 cd ..
@@ -91,30 +120,38 @@ echo ""
 
 # Start Java Hold Service (if it exists)
 JAVA_PID=""
-HOLD_SERVICE_DIR="booking_system_inventory_hold_service"
+HOLD_SERVICE_DIR="inventory_hold_service"
 if [ -d "$HOLD_SERVICE_DIR" ]; then
     HOLD_SERVICE_CMD=""
+    HAS_POM="false"
+    HAS_JAR="false"
 
     if [ -f "$HOLD_SERVICE_DIR/pom.xml" ]; then
-        if command -v mvn &> /dev/null; then
-            HOLD_SERVICE_CMD="mvn -q spring-boot:run"
-        else
-            echo "⚠️  Maven is not installed. Looking for a built Java Hold Service JAR..."
-        fi
+        HAS_POM="true"
     fi
 
-    if [ -z "$HOLD_SERVICE_CMD" ]; then
-        for jar in "$HOLD_SERVICE_DIR"/target/*.jar; do
-            if [ -f "$jar" ] && [[ "$jar" != *.original ]]; then
+    for jar in "$HOLD_SERVICE_DIR"/target/*.jar; do
+        if [ -f "$jar" ] && [[ "$jar" != *.original ]]; then
+            HAS_JAR="true"
+            if [ -z "$HOLD_SERVICE_CMD" ]; then
                 HOLD_SERVICE_CMD="java -jar target/$(basename "$jar")"
-                break
             fi
-        done
+        fi
+    done
+
+    if [ "$HAS_POM" = "true" ] && command -v mvn &> /dev/null; then
+        HOLD_SERVICE_CMD="mvn -q spring-boot:run"
+    elif [ "$HAS_POM" = "true" ] && [ "$HAS_JAR" = "false" ]; then
+        echo "⚠️  Maven is not installed and no built Java Hold Service JAR was found in $HOLD_SERVICE_DIR/target."
+        echo "⚠️  Install Maven or provide a built JAR to enable quote and hold flow."
+        echo ""
     fi
 
     if [ -z "$HOLD_SERVICE_CMD" ]; then
-        echo "⚠️  Java Hold Service found, but no pom.xml or runnable JAR exists in $HOLD_SERVICE_DIR. Skipping..."
-        echo ""
+        if [ "$HAS_POM" != "true" ] && [ "$HAS_JAR" != "true" ]; then
+            echo "⚠️  Java Hold Service found, but no pom.xml or runnable JAR exists in $HOLD_SERVICE_DIR. Skipping..."
+            echo ""
+        fi
     elif ! command -v java &> /dev/null; then
         echo "⚠️  Java is not installed. Skipping Java Hold Service..."
         echo ""
@@ -125,15 +162,28 @@ if [ -d "$HOLD_SERVICE_DIR" ]; then
         JAVA_PID=$!
 
         # Wait for Java service to start and verify
-        sleep 8
-        if ! curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then
-            # Try alternate health paths as fallbacks
-            if ! curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
-                if ! curl -s http://localhost:8080/ > /dev/null 2>&1; then
-                    echo "⚠️  Java Hold Service failed to start. Check $HOLD_SERVICE_DIR/java.log for errors:"
-                    cat java.log
-                    echo "⚠️  Continuing without Java Hold Service..."
-                    JAVA_PID=""
+        sleep 12
+        if command -v curl &> /dev/null; then
+            if ! curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then
+                # Try alternate health paths as fallbacks
+                if ! curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
+                    if ! curl -s http://localhost:8080/ > /dev/null 2>&1; then
+                        echo "⚠️  Java Hold Service failed to start. Check $HOLD_SERVICE_DIR/java.log for errors:"
+                        cat java.log
+                        echo "⚠️  Continuing without Java Hold Service..."
+                        JAVA_PID=""
+                    fi
+                fi
+            fi
+        else
+            if ! powershell -Command "try { (Invoke-WebRequest -UseBasicParsing http://localhost:8080/api/v1/health).StatusCode | Out-Null; exit 0 } catch { exit 1 }"; then
+                if ! powershell -Command "try { (Invoke-WebRequest -UseBasicParsing http://localhost:8080/actuator/health).StatusCode | Out-Null; exit 0 } catch { exit 1 }"; then
+                    if ! powershell -Command "try { (Invoke-WebRequest -UseBasicParsing http://localhost:8080/).StatusCode | Out-Null; exit 0 } catch { exit 1 }"; then
+                        echo "⚠️  Java Hold Service failed to start. Check $HOLD_SERVICE_DIR/java.log for errors:"
+                        cat java.log
+                        echo "⚠️  Continuing without Java Hold Service..."
+                        JAVA_PID=""
+                    fi
                 fi
             fi
         fi

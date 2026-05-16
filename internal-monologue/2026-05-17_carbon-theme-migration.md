@@ -1,0 +1,24 @@
+# Carbon theme migration summary
+
+- Switched the frontend shell toward an IBM Carbon visual foundation using the installed `@carbon/react` and `@carbon/styles` packages.
+- Replaced shared UI primitives:
+  - `Button` now wraps Carbon button/loading behavior
+  - `Input` now wraps Carbon `TextInput`
+  - `Modal` now wraps Carbon modal components
+  - `LoadingSpinner` now uses Carbon loading components
+  - `Card` moved to a Carbon-styled local wrapper
+- Reworked app shell styling:
+  - removed dual theme dependence from `App.tsx`
+  - replaced the starfield-led shell with a Carbon-style shell in `Layout.tsx`
+  - migrated `Header.tsx` to Carbon header/navigation
+  - updated `Footer.tsx` to match the Carbon shell
+  - replaced `index.css` with Carbon-oriented global styling and utility classes
+- Fixed branch-specific frontend breakages discovered during build:
+  - removed missing `ThemeContext` dependency from `App.tsx`
+  - removed broken `ThemeSwitcher` export from common index
+  - simplified `BookingModal.tsx` to remove missing `ClassComparison` and `UpgradePrompt` dependencies on this branch
+- Validation:
+  - `cd booking_system_frontend; npm run build` passes successfully
+- Known limitation:
+  - this is a safe, reversible Carbon migration pass, not a full component-by-component redesign of every page into native Carbon layouts yet
+  - build warns about large bundle/chunk sizes, but compilation succeeds

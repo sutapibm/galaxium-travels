@@ -141,10 +141,10 @@ export const MyBookings = () => {
         animate={{ opacity: 1, y: 0 }}
         className="text-center"
       >
-        <h1 className="text-4xl md:text-5xl font-bold text-star-white mb-4">
-          My <span className="bg-cosmic-gradient bg-clip-text text-transparent">Bookings</span>
+        <h1 className="text-4xl md:text-5xl font-bold text-[#161616] dark-theme-text mb-4">
+          My <span className="text-[#0f62fe] dark-theme-blue-text">Bookings</span>
         </h1>
-        <p className="text-star-white/70 text-lg">
+        <p className="text-[#525252] dark-theme-subtle text-lg">
           Manage your space travel reservations
         </p>
       </motion.div>
@@ -161,10 +161,10 @@ export const MyBookings = () => {
               transition={{ delay: 0.05 }}
             >
               <div className="flex items-center gap-3 mb-4">
-                <h2 className="text-2xl font-bold text-solar-orange">
+                <h2 className="text-2xl font-bold text-[#d9480f]">
                   Pending Holds ({activeHolds.length})
                 </h2>
-                <span className="text-xs text-star-white/50 bg-solar-orange/10 border border-solar-orange/30 px-2 py-1 rounded-full">
+                <span className="text-xs text-[#6f6f6f] bg-[#fff1e8] border border-[#ffd7c2] px-2 py-1 rounded-full">
                   Confirm before time runs out
                 </span>
               </div>
@@ -186,13 +186,13 @@ export const MyBookings = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-card p-12 text-center"
+              className="carbon-card p-12 text-center"
             >
-              <AlertCircle className="mx-auto mb-4 text-star-white/50" size={48} />
-              <h3 className="text-xl font-semibold text-star-white mb-2">
+              <AlertCircle className="mx-auto mb-4 text-[#8d8d8d]" size={48} />
+              <h3 className="text-xl font-semibold text-[#161616] mb-2">
                 No bookings yet
               </h3>
-              <p className="text-star-white/70 mb-6">
+              <p className="text-[#525252] mb-6">
                 Start your space adventure by booking your first flight!
               </p>
               <Button onClick={() => navigate('/flights')}>Browse Flights</Button>
@@ -206,7 +206,7 @@ export const MyBookings = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <h2 className="text-2xl font-bold text-star-white mb-4">
+              <h2 className="text-2xl font-bold text-[#161616] dark-theme-text mb-4">
                 Active Bookings ({activeBookings.length})
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -217,6 +217,7 @@ export const MyBookings = () => {
                     flight={getFlightForBooking(booking)}
                     onCancel={handleCancelClick}
                     isCancelling={cancellingId === booking.booking_id}
+                    onUpgrade={loadData}
                   />
                 ))}
               </div>
@@ -230,7 +231,7 @@ export const MyBookings = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <h2 className="text-2xl font-bold text-star-white mb-4">
+              <h2 className="text-2xl font-bold text-[#161616] dark-theme-text mb-4">
                 Past Bookings ({pastBookings.length})
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -256,7 +257,7 @@ export const MyBookings = () => {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-star-white/70">
+          <p className="text-[#525252] dark-theme-subtle">
             Are you sure you want to cancel this booking? This action cannot be undone.
           </p>
           <div className="flex gap-3">

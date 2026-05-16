@@ -1,31 +1,37 @@
-import type { InputHTMLAttributes } from 'react';
+import type { ChangeEventHandler } from 'react';
+import { TextInput } from '@carbon/react';
 import clsx from 'clsx';
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+interface InputProps {
   label?: string;
   error?: string;
+  className?: string;
+  id?: string;
+  name?: string;
+  type?: string;
+  placeholder?: string;
+  value?: string | number;
+  defaultValue?: string | number;
+  disabled?: boolean;
+  required?: boolean;
+  readOnly?: boolean;
+  min?: number | string;
+  max?: number | string;
+  step?: number | string;
+  autoComplete?: string;
+  onChange?: ChangeEventHandler<HTMLInputElement>;
 }
 
-export const Input = ({ label, error, className, ...props }: InputProps) => {
+export const Input = ({ label, error, className, id, ...props }: InputProps) => {
   return (
-    <div className="w-full">
-      {label && (
-        <label className="block text-sm font-medium text-star-white mb-2">
-          {label}
-        </label>
-      )}
-      <input
-        className={clsx(
-          'input-field',
-          error && 'border-red-500 focus:ring-red-500',
-          className
-        )}
-        {...props}
-      />
-      {error && (
-        <p className="mt-1 text-sm text-red-400">{error}</p>
-      )}
-    </div>
+    <TextInput
+      id={id ?? props.name ?? label ?? 'input-field'}
+      labelText={label ?? ''}
+      invalid={Boolean(error)}
+      invalidText={error}
+      className={clsx('carbon-text-input', className)}
+      {...props}
+    />
   );
 };
 

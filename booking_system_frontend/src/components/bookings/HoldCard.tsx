@@ -42,11 +42,11 @@ export const HoldCard = ({ storedHold, flight, onAction }: HoldCardProps) => {
   const getSeatIcon = () => {
     switch (storedHold.seatClass) {
       case 'business':
-        return <Crown size={16} className="text-purple-400" />;
+        return <Crown size={16} className="text-[#8a3ffc]" />;
       case 'galaxium':
-        return <Rocket size={16} className="text-alien-green" />;
+        return <Rocket size={16} className="text-[#198038]" />;
       default:
-        return <Plane size={16} className="text-blue-400" />;
+        return <Plane size={16} className="text-[#0f62fe]" />;
     }
   };
 
@@ -98,22 +98,22 @@ export const HoldCard = ({ storedHold, flight, onAction }: HoldCardProps) => {
       whileHover={{ y: -2 }}
       transition={{ duration: 0.2 }}
     >
-      <Card className={`border ${isExpired ? 'border-red-500/30' : 'border-solar-orange/30'}`}>
+      <Card className={`border ${isExpired ? 'border-[#da1e28]/30 dark-theme-red-surface' : 'border-[#ff832b]/30 dark-theme-orange-surface'}`}>
         {/* Header */}
-        <div className="flex items-start justify-between mb-4 pb-4 border-b border-white/10">
+        <div className="flex items-start justify-between mb-4 pb-4 border-b border-[#e0e0e0] dark-theme-border">
           <div className="flex items-center gap-3">
             <div
               className={`p-2 rounded-lg ${
-                isExpired ? 'bg-red-500/20' : 'bg-solar-orange/20'
+                isExpired ? 'bg-[#fff1f1] dark-theme-red-surface' : 'bg-[#fff1e8] dark-theme-orange-surface'
               }`}
             >
               <Zap
-                className={isExpired ? 'text-red-400' : 'text-solar-orange'}
+                className={isExpired ? 'text-[#da1e28]' : 'text-[#ff832b]'}
                 size={20}
               />
             </div>
             <div>
-              <p className="text-xs text-star-white/60 font-mono">{storedHold.holdId}</p>
+              <p className="text-xs text-[#6f6f6f] dark-theme-helper font-mono">{storedHold.holdId}</p>
               <div className="flex items-center gap-2 mt-1">
                 {isExpired ? (
                   <>
@@ -122,8 +122,8 @@ export const HoldCard = ({ storedHold, flight, onAction }: HoldCardProps) => {
                   </>
                 ) : (
                   <>
-                    <Timer className="text-solar-orange" size={16} />
-                    <span className="text-sm font-semibold text-solar-orange">
+                    <Timer className="text-[#ff832b]" size={16} />
+                    <span className="text-sm font-semibold text-[#d9480f]">
                       Held · {timerDisplay}
                     </span>
                   </>
@@ -137,25 +137,32 @@ export const HoldCard = ({ storedHold, flight, onAction }: HoldCardProps) => {
         <div className="space-y-3 mb-4">
           {flight ? (
             <div>
-              <h3 className="text-xl font-bold text-star-white mb-1">
+              <h3 className="text-xl font-bold text-[#161616] dark-theme-text mb-1">
                 {flight.origin} → {flight.destination}
               </h3>
-              <p className="text-sm text-star-white/60">Flight #{flight.flight_id}</p>
+              <p className="text-sm text-[#6f6f6f] dark-theme-helper">Flight #{flight.flight_id}</p>
             </div>
           ) : (
-            <p className="text-sm text-star-white/60">Flight #{storedHold.flightId}</p>
+            <p className="text-sm text-[#6f6f6f] dark-theme-helper">Flight #{storedHold.flightId}</p>
           )}
 
-          <div className="flex items-center justify-between pt-2 border-t border-white/10">
-            <div className="flex items-center gap-2">
-              {getSeatIcon()}
-              <span className="text-sm text-star-white/70">{getSeatClassName()}</span>
+          <div className="space-y-2 pt-2 border-t border-[#e0e0e0] dark-theme-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {getSeatIcon()}
+                <span className="text-sm text-[#525252] dark-theme-subtle">{getSeatClassName()}</span>
+              </div>
+              <span className="text-lg font-bold text-[#161616] dark-theme-text">
+                {storedHold.totalPrice != null && !isNaN(storedHold.totalPrice)
+                  ? formatCurrency(storedHold.totalPrice)
+                  : '—'}
+              </span>
             </div>
-            <span className="text-lg font-bold text-star-white">
-              {storedHold.totalPrice != null && !isNaN(storedHold.totalPrice)
-                ? formatCurrency(storedHold.totalPrice)
-                : '—'}
-            </span>
+            <div className="text-xs text-[#6f6f6f] dark-theme-helper">
+              {storedHold.adultCount} adult
+              {storedHold.lapInfantCount > 0 ? ` · ${storedHold.lapInfantCount} lap infant` : ''}
+              {storedHold.seatedInfantCount > 0 ? ` · ${storedHold.seatedInfantCount} seated infant` : ''}
+            </div>
           </div>
         </div>
 

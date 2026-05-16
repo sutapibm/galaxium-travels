@@ -53,6 +53,20 @@ class BookingRequest(BaseModel):
     name: str
     flight_id: int
     seat_class: SeatClass = 'economy'  # Default to economy
+    adult_count: int = 1
+    lap_infant_count: int = 0
+    seated_infant_count: int = 0
+
+
+class UpgradeRequest(BaseModel):
+    new_seat_class: SeatClass
+
+
+class ModifyBookingRequest(BaseModel):
+    seat_class: SeatClass
+    adult_count: int = 1
+    lap_infant_count: int = 0
+    seated_infant_count: int = 0
 
 
 class BookingOut(BaseModel):
@@ -63,6 +77,12 @@ class BookingOut(BaseModel):
     booking_time: str
     seat_class: str
     price_paid: int
+    adult_count: int = 1
+    lap_infant_count: int = 0
+    seated_infant_count: int = 0
+    adult_price_paid: int = 0
+    lap_infant_price_paid: int = 0
+    seated_infant_price_paid: int = 0
 
     class Config:
         from_attributes = True

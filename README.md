@@ -33,7 +33,7 @@ galaxium-travels/
 │   │   └── types/            # TypeScript definitions
 │   └── dist/                 # Production build
 │
-├── booking_system_inventory_hold_service/ # Java hold service (Spring Boot)
+├── inventory_hold_service/            # Java hold service (Spring Boot)
 │   └── src/main/java/        # Java source code
 │
 ├── docs/                      # 📚 All documentation
@@ -47,6 +47,9 @@ galaxium-travels/
 │   └── local/                # Local dev scripts
 │
 ├── terraform/                 # Infrastructure as code
+├── .bob/                      # Bob AI IDE configuration
+│   └── rules/                # Coding rules and guidelines
+│       └── basic_rules.md    # Documentation and monologue rules
 ├── AGENTS.md                  # Critical patterns for AI agents
 └── start.sh                   # Quick start script
 ```
@@ -115,7 +118,7 @@ Once started, access:
 ### Component Documentation
 - **Backend**: [booking_system_backend/README.md](booking_system_backend/README.md) - API endpoints, MCP tools, database schema
 - **Frontend**: [booking_system_frontend/README.md](booking_system_frontend/README.md) - Components, styling, build instructions
-- **Java Service**: [booking_system_inventory_hold_service/README.md](booking_system_inventory_hold_service/README.md) - Hold service API and architecture
+- **Java Service**: [inventory_hold_service/README.md](inventory_hold_service/README.md) - Hold service API and architecture
 
 ### Deployment Guides
 - **AWS**: [docs/AWS-DEPLOYMENT.md](docs/AWS-DEPLOYMENT.md) - Complete AWS ECS deployment guide

@@ -37,3 +37,9 @@ class Booking(Base):
     booking_time = Column(String, nullable=False)
     seat_class = Column(String, nullable=False, default='economy')  # economy/business/galaxium
     price_paid = Column(Integer, nullable=False)  # Actual price at booking time
+    adult_count = Column(Integer, nullable=False, default=1)
+    lap_infant_count = Column(Integer, nullable=False, default=0)
+    seated_infant_count = Column(Integer, nullable=False, default=0)
+    adult_price_paid = Column(Integer, nullable=False, default=0)
+    lap_infant_price_paid = Column(Integer, nullable=False, default=0)
+    seated_infant_price_paid = Column(Integer, nullable=False, default=0)

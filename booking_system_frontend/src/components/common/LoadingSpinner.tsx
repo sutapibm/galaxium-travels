@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { InlineLoading, Loading } from '@carbon/react';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -6,22 +6,18 @@ interface LoadingSpinnerProps {
 }
 
 export const LoadingSpinner = ({ size = 'md', text }: LoadingSpinnerProps) => {
-  const sizeClasses = {
-    sm: 'h-6 w-6',
-    md: 'h-12 w-12',
-    lg: 'h-16 w-16',
-  };
+  if (size === 'sm') {
+    return (
+      <div className="carbon-loading-wrapper">
+        <InlineLoading description={text ?? 'Loading'} status="active" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-8">
-      <motion.div
-        className={`${sizeClasses[size]} border-4 border-cosmic-purple border-t-transparent rounded-full`}
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-      />
-      {text && (
-        <p className="text-star-white/70 text-sm">{text}</p>
-      )}
+    <div className="carbon-loading-wrapper carbon-loading-wrapper--block">
+      <Loading small={size === 'md'} withOverlay={false} description={text ?? 'Loading'} />
+      {text ? <p className="carbon-loading-text">{text}</p> : null}
     </div>
   );
 };

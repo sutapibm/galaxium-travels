@@ -25,6 +25,12 @@ export interface Booking {
   booking_time: string;
   seat_class: SeatClass;
   price_paid: number;
+  adult_count: number;
+  lap_infant_count: number;
+  seated_infant_count: number;
+  adult_price_paid: number;
+  lap_infant_price_paid: number;
+  seated_infant_price_paid: number;
 }
 
 export interface User {
@@ -39,11 +45,21 @@ export interface BookingRequest {
   name: string;
   flight_id: number;
   seat_class?: SeatClass;
+  adult_count?: number;
+  lap_infant_count?: number;
+  seated_infant_count?: number;
 }
 
 export interface UserRegistration {
   name: string;
   email: string;
+}
+
+export interface ModifyBookingRequest {
+  seat_class: SeatClass;
+  adult_count: number;
+  lap_infant_count: number;
+  seated_infant_count: number;
 }
 
 export interface ErrorResponse {
@@ -80,12 +96,18 @@ export interface Quote {
   flightId: number;
   seatClass: string;
   quantity: number;
+  adultCount: number;
+  lapInfantCount: number;
+  seatedInfantCount: number;
   travelerId: number;
   travelerName: string;
   pricePerSeat: number;
+  adultSubtotal: number;
+  lapInfantSubtotal: number;
+  seatedInfantSubtotal: number;
   totalPrice: number;
   expiresAt: string;
-  status: 'CREATED';
+  status: 'CREATED' | 'EXPIRED';
   createdAt: string;
 }
 
@@ -108,7 +130,13 @@ export interface StoredHold {
   quoteId: string;
   flightId: number;
   seatClass: SeatClass;
+  adultCount: number;
+  lapInfantCount: number;
+  seatedInfantCount: number;
   pricePerSeat: number;
+  adultSubtotal: number;
+  lapInfantSubtotal: number;
+  seatedInfantSubtotal: number;
   totalPrice: number;
   reservedUntil: string;
 }

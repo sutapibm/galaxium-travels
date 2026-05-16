@@ -1,155 +1,126 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Rocket, User, LogOut } from 'lucide-react';
+import {
+  Header as CarbonHeader,
+  HeaderName,
+  HeaderNavigation,
+  HeaderMenuItem,
+  HeaderGlobalBar,
+  HeaderMenuButton,
+  SideNav,
+  SideNavItems,
+  SideNavLink,
+} from '@carbon/react';
+import { User, LogOut, Moon, Sun } from 'lucide-react';
 import { useUser } from '../../hooks/useUser';
+import { useTheme } from '../../App';
 import { Button } from '../common';
 import { UserIdentification } from '../user/UserIdentification';
-import { motion } from 'framer-motion';
 
 export const Header = () => {
   const location = useLocation();
   const { user, logout } = useUser();
+  const { theme, toggleTheme } = useTheme();
   const [showUserModal, setShowUserModal] = useState(false);
+  const [isSideNavExpanded, setIsSideNavExpanded] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
-    <header className="fixed top-0 left-0 right-0 z-30 glass-card border-b border-white/10">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
-            <motion.div
-              whileHover={{ rotate: 15 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Rocket className="text-cosmic-purple" size={32} />
-            </motion.div>
-            <span className="text-2xl font-bold bg-cosmic-gradient bg-clip-text text-transparent">
-              Galaxium Travels
-            </span>
-          </Link>
+      <CarbonHeader aria-label="Galaxium Travels">
+        <HeaderMenuButton
+          aria-label={isSideNavExpanded ? 'Close navigation menu' : 'Open navigation menu'}
+          isActive={isSideNavExpanded}
+          onClick={() => setIsSideNavExpanded((currentValue) => !currentValue)}
+        />
+        <HeaderName as={Link} to="/" prefix="IBM">
+          Galaxium Travels
+        </HeaderName>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
-            <Link
-              to="/"
-              className={`text-sm font-medium transition-colors ${
-                isActive('/')
-                  ? 'text-cosmic-purple'
-                  : 'text-star-white/70 hover:text-star-white'
-              }`}
-            >
+        <HeaderNavigation aria-label="Primary navigation" className="max-[1055px]:hidden">
+          <HeaderMenuItem as={Link} to="/" isActive={isActive('/')}>
+            Home
+          </HeaderMenuItem>
+          <HeaderMenuItem as={Link} to="/flights" isActive={isActive('/flights')}>
+            Flights
+          </HeaderMenuItem>
+          {user ? (
+            <HeaderMenuItem as={Link} to="/bookings" isActive={isActive('/bookings')}>
+              My Bookings
+            </HeaderMenuItem>
+          ) : null}
+        </HeaderNavigation>
+
+        <SideNav
+          aria-label="Mobile navigation"
+          expanded={isSideNavExpanded}
+          isPersistent={false}
+          onOverlayClick={() => setIsSideNavExpanded(false)}
+          onSideNavBlur={() => setIsSideNavExpanded(false)}
+        >
+          <SideNavItems>
+            <SideNavLink as={Link} to="/" isActive={isActive('/')} onClick={() => setIsSideNavExpanded(false)}>
               Home
-            </Link>
-            <Link
-              to="/flights"
-              className={`text-sm font-medium transition-colors ${
-                isActive('/flights')
-                  ? 'text-cosmic-purple'
-                  : 'text-star-white/70 hover:text-star-white'
-              }`}
-            >
+            </SideNavLink>
+            <SideNavLink as={Link} to="/flights" isActive={isActive('/flights')} onClick={() => setIsSideNavExpanded(false)}>
               Flights
-            </Link>
-            {user && (
-              <Link
+            </SideNavLink>
+            {user ? (
+              <SideNavLink
+                as={Link}
                 to="/bookings"
-                className={`text-sm font-medium transition-colors ${
-                  isActive('/bookings')
-                    ? 'text-cosmic-purple'
-                    : 'text-star-white/70 hover:text-star-white'
-                }`}
+                isActive={isActive('/bookings')}
+                onClick={() => setIsSideNavExpanded(false)}
               >
                 My Bookings
-              </Link>
-            )}
-          </nav>
+              </SideNavLink>
+            ) : null}
+          </SideNavItems>
+        </SideNav>
 
-          {/* User Section */}
-          <div className="flex items-center gap-4">
+        <HeaderGlobalBar>
+          <div className="flex items-center gap-3 pr-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={toggleTheme}
+              className="min-w-0 px-0"
+            >
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            </Button>
+
             {user ? (
-              <div className="flex items-center gap-3">
-                <div className="hidden md:flex items-center gap-2 text-sm">
-                  <User size={16} className="text-cosmic-purple" />
-                  <span className="text-star-white">{user.name}</span>
-                </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={logout}
-                  className="flex items-center gap-2"
-                >
-                  <LogOut size={16} />
-                  <span className="hidden md:inline">Logout</span>
-                </Button>
-              </div>
-            ) : (
               <>
-                {location.pathname === '/' ? (
-                  <Link to="/flights">
-                    <Button size="sm">Book a Flight</Button>
-                  </Link>
-                ) : (
-                  <Button
-                    size="sm"
-                    onClick={() => setShowUserModal(true)}
-                  >
-                    Login
-                  </Button>
-                )}
+                <div className="hidden md:flex items-center gap-2 text-sm carbon-muted">
+                  <User size={16} />
+                  <span>{user.name}</span>
+                </div>
+                <Button variant="secondary" size="sm" onClick={logout}>
+                  <LogOut size={16} />
+                  <span>Logout</span>
+                </Button>
               </>
+            ) : location.pathname === '/' ? (
+              <Link to="/flights">
+                <Button size="sm">Book a Flight</Button>
+              </Link>
+            ) : (
+              <Button size="sm" onClick={() => setShowUserModal(true)}>
+                Login
+              </Button>
             )}
           </div>
-        </div>
+        </HeaderGlobalBar>
+      </CarbonHeader>
 
-        {/* Mobile Navigation */}
-        <nav className="md:hidden flex items-center gap-4 mt-4 pt-4 border-t border-white/10">
-          <Link
-            to="/"
-            className={`text-sm font-medium transition-colors ${
-              isActive('/')
-                ? 'text-cosmic-purple'
-                : 'text-star-white/70 hover:text-star-white'
-            }`}
-          >
-            Home
-          </Link>
-          <Link
-            to="/flights"
-            className={`text-sm font-medium transition-colors ${
-              isActive('/flights')
-                ? 'text-cosmic-purple'
-                : 'text-star-white/70 hover:text-star-white'
-            }`}
-          >
-            Flights
-          </Link>
-          {user && (
-            <Link
-              to="/bookings"
-              className={`text-sm font-medium transition-colors ${
-                isActive('/bookings')
-                  ? 'text-cosmic-purple'
-                  : 'text-star-white/70 hover:text-star-white'
-              }`}
-            >
-              My Bookings
-            </Link>
-          )}
-        </nav>
-      </div>
-    </header>
-    
-    {/* User Identification Modal - Outside header for proper z-index */}
-    <UserIdentification
-      isOpen={showUserModal}
-      onClose={() => setShowUserModal(false)}
-      onSuccess={() => {
-        setShowUserModal(false);
-      }}
-    />
+      <UserIdentification
+        isOpen={showUserModal}
+        onClose={() => setShowUserModal(false)}
+        onSuccess={() => {
+          setShowUserModal(false);
+        }}
+      />
     </>
   );
 };

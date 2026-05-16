@@ -42,11 +42,11 @@ export const Home = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <h1 className="text-5xl md:text-7xl font-bold mb-6">
-            <span className="bg-cosmic-gradient bg-clip-text text-transparent">
+            <span className="text-[#0f62fe] dark-theme-blue-text">
               Journey Beyond
             </span>
             <br />
-            <span className="text-star-white">The Stars</span>
+            <span className="text-[#161616] dark-theme-text">The Stars</span>
           </h1>
         </motion.div>
 
@@ -54,7 +54,7 @@ export const Home = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="text-xl text-star-white/80 mb-8 max-w-2xl mx-auto"
+          className="text-xl text-[#525252] dark-theme-subtle mb-8 max-w-2xl mx-auto"
         >
           Experience the future of space travel with Galaxium. Book your
           interplanetary flight and explore the wonders of our solar system.
@@ -83,7 +83,7 @@ export const Home = () => {
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="text-3xl md:text-4xl font-bold text-center mb-12 text-star-white"
+          className="text-3xl md:text-4xl font-bold text-center mb-12 text-[#161616] dark-theme-text"
         >
           Why Choose Galaxium?
         </motion.h2>
@@ -96,15 +96,15 @@ export const Home = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
-              className="glass-card p-6 text-center hover:bg-white/10 transition-all duration-300"
+              className="carbon-card p-6 text-center transition-all duration-300"
             >
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cosmic-gradient mb-4">
-                <div className="text-white">{feature.icon}</div>
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#edf5ff] border border-[#a6c8ff] dark-theme-blue-surface mb-4">
+                <div className="text-[#0f62fe] dark-theme-blue-text">{feature.icon}</div>
               </div>
-              <h3 className="text-xl font-semibold text-star-white mb-2">
+              <h3 className="text-xl font-semibold text-[#161616] dark-theme-text mb-2">
                 {feature.title}
               </h3>
-              <p className="text-star-white/70">{feature.description}</p>
+              <p className="text-[#525252] dark-theme-subtle">{feature.description}</p>
             </motion.div>
           ))}
         </div>
@@ -115,12 +115,12 @@ export const Home = () => {
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
-        className="glass-card p-12 text-center bg-cosmic-gradient"
+        className="carbon-card p-12 text-center"
       >
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+        <h2 className="text-3xl md:text-4xl font-bold text-[#161616] dark-theme-text mb-4">
           Ready for Your Space Adventure?
         </h2>
-        <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto">
+        <p className="text-[#525252] dark-theme-subtle text-lg mb-8 max-w-2xl mx-auto">
           Join thousands of space travelers who have already booked their
           journey to the stars. Your adventure awaits!
         </p>

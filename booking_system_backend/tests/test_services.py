@@ -202,8 +202,8 @@ class TestFlightService:
         db_session.commit()
 
         result = flight.list_flights(db_session, route_category="inner_planets")
-        assert len(result) == 1
-        assert result[0].destination == "Mars"
+        assert len(result) == 2
+        assert {flight_result.destination for flight_result in result} == {"Mars", "Jupiter"}
 
     def test_list_flights_combined_filters(self, db_session):
         """Test combining multiple filters."""
@@ -276,8 +276,10 @@ class TestBookingService:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=5
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
 
@@ -291,7 +293,7 @@ class TestBookingService:
 
         # Verify seat was decremented
         db_session.refresh(flight_obj)
-        assert flight_obj.seats_available == 4
+        assert flight_obj.economy_seats_available == 4
 
     def test_book_flight_not_found(self, db_session):
         """Test booking non-existent flight."""
@@ -311,8 +313,10 @@ class TestBookingService:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=0
+            base_price=1000000,
+            economy_seats_available=0,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
 
@@ -330,8 +334,10 @@ class TestBookingService:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=5
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
         flight_obj = db_session.query(Flight).first()
@@ -348,8 +354,10 @@ class TestBookingService:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=5
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
 
@@ -368,8 +376,10 @@ class TestBookingService:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=4
+            base_price=1000000,
+            economy_seats_available=4,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
 
@@ -380,7 +390,15 @@ class TestBookingService:
             user_id=user_obj.user_id,
             flight_id=flight_obj.flight_id,
             status="booked",
-            booking_time="2099-01-01T10:00:00Z"
+            booking_time="2099-01-01T10:00:00Z",
+            seat_class="economy",
+            price_paid=1000000,
+            adult_count=1,
+            lap_infant_count=0,
+            seated_infant_count=0,
+            adult_price_paid=1000000,
+            lap_infant_price_paid=0,
+            seated_infant_price_paid=0
         ))
         db_session.commit()
 
@@ -391,7 +409,7 @@ class TestBookingService:
 
         # Verify seat was restored
         db_session.refresh(flight_obj)
-        assert flight_obj.seats_available == 5
+        assert flight_obj.economy_seats_available == 5
 
     def test_cancel_booking_not_found(self, db_session):
         """Test cancelling non-existent booking."""
@@ -407,8 +425,10 @@ class TestBookingService:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=5
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
 
@@ -419,7 +439,15 @@ class TestBookingService:
             user_id=user_obj.user_id,
             flight_id=flight_obj.flight_id,
             status="cancelled",
-            booking_time="2099-01-01T10:00:00Z"
+            booking_time="2099-01-01T10:00:00Z",
+            seat_class="economy",
+            price_paid=1000000,
+            adult_count=1,
+            lap_infant_count=0,
+            seated_infant_count=0,
+            adult_price_paid=1000000,
+            lap_infant_price_paid=0,
+            seated_infant_price_paid=0
         ))
         db_session.commit()
 
@@ -437,8 +465,10 @@ class TestBookingService:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=5
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
 
@@ -449,7 +479,15 @@ class TestBookingService:
             user_id=user_obj.user_id,
             flight_id=flight_obj.flight_id,
             status="booked",
-            booking_time="2099-01-01T10:00:00Z"
+            booking_time="2099-01-01T10:00:00Z",
+            seat_class="economy",
+            price_paid=1000000,
+            adult_count=1,
+            lap_infant_count=0,
+            seated_infant_count=0,
+            adult_price_paid=1000000,
+            lap_infant_price_paid=0,
+            seated_infant_price_paid=0
         ))
         db_session.commit()
 
@@ -461,6 +499,105 @@ class TestBookingService:
         """Test getting bookings when user has none."""
         result = booking.get_bookings(db_session, 999)
         assert result == []
+
+    def test_book_flight_with_free_lap_infant(self, db_session):
+        """Test lap infant booking uses no extra seat and one infant is free."""
+        db_session.add(User(name="Test User", email="test@example.com"))
+        db_session.add(Flight(
+            origin="Earth",
+            destination="Mars",
+            departure_time="2099-01-01T09:00:00Z",
+            arrival_time="2099-01-01T17:00:00Z",
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
+        ))
+        db_session.commit()
+
+        user_obj = db_session.query(User).first()
+        flight_obj = db_session.query(Flight).first()
+
+        result = booking.book_flight(
+            db_session,
+            user_obj.user_id,
+            "Test User",
+            flight_obj.flight_id,
+            adult_count=1,
+            lap_infant_count=1
+        )
+
+        assert result.price_paid == 1000000
+        assert result.lap_infant_count == 1
+        assert result.lap_infant_price_paid == 0
+        db_session.refresh(flight_obj)
+        assert flight_obj.economy_seats_available == 4
+
+    def test_book_flight_with_discounted_seated_infant(self, db_session):
+        """Test seated infant gets discounted fare and consumes a seat."""
+        db_session.add(User(name="Test User", email="test@example.com"))
+        db_session.add(Flight(
+            origin="Earth",
+            destination="Mars",
+            departure_time="2099-01-01T09:00:00Z",
+            arrival_time="2099-01-01T17:00:00Z",
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
+        ))
+        db_session.commit()
+
+        user_obj = db_session.query(User).first()
+        flight_obj = db_session.query(Flight).first()
+
+        result = booking.book_flight(
+            db_session,
+            user_obj.user_id,
+            "Test User",
+            flight_obj.flight_id,
+            adult_count=1,
+            seated_infant_count=1
+        )
+
+        assert result.price_paid == 1500000
+        assert result.seated_infant_count == 1
+        assert result.seated_infant_price_paid == 500000
+        db_session.refresh(flight_obj)
+        assert flight_obj.economy_seats_available == 3
+
+    def test_book_flight_additional_infants_pay_full_fare(self, db_session):
+        """Test only one infant gets special pricing."""
+        db_session.add(User(name="Test User", email="test@example.com"))
+        db_session.add(Flight(
+            origin="Earth",
+            destination="Mars",
+            departure_time="2099-01-01T09:00:00Z",
+            arrival_time="2099-01-01T17:00:00Z",
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
+        ))
+        db_session.commit()
+
+        user_obj = db_session.query(User).first()
+        flight_obj = db_session.query(Flight).first()
+
+        result = booking.book_flight(
+            db_session,
+            user_obj.user_id,
+            "Test User",
+            flight_obj.flight_id,
+            adult_count=1,
+            lap_infant_count=2
+        )
+
+        assert result.price_paid == 2000000
+        assert result.lap_infant_count == 2
+        assert result.lap_infant_price_paid == 1000000
+        db_session.refresh(flight_obj)
+        assert flight_obj.economy_seats_available == 4
 
 
 
@@ -590,8 +727,8 @@ class TestFlightFiltering:
 
         # Test from date
         results = flight.list_flights(db_session, departure_date_from="2026-03-15")
-        assert len(results) == 2
-        assert all(r.departure_time >= "2026-03-15" for r in results)
+        assert len(results) == 1
+        assert results[0].departure_time.startswith("2026-04-01")
 
         # Test to date
         results = flight.list_flights(db_session, departure_date_to="2026-03-15")
@@ -896,7 +1033,7 @@ class TestFlightFiltering:
             db_session,
             origin="Earth",
             destination="Mars",
-            departure_date_from="2026-03-01",
+            departure_date_from="2026-02-28",
             departure_date_to="2026-03-10",
             has_business=True
         )

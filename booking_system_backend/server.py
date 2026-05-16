@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastmcp import FastMCP
@@ -10,7 +11,7 @@ import httpx
 from db import SessionLocal, init_db, get_db
 from seed import seed
 from services import flight, user, booking
-from schemas import FlightOut, BookingOut, UserOut, ErrorResponse, BookingRequest, UserRegistration
+from schemas import FlightOut, BookingOut, UserOut, ErrorResponse, BookingRequest, UserRegistration, UpgradeRequest, ModifyBookingRequest
 
 # Load environment variables from .env file
 load_dotenv()
@@ -259,6 +260,25 @@ def cancel_booking_endpoint(booking_id: int, db: Session = Depends(get_db)):
     return booking.cancel_booking(db, booking_id)
 
 
+@app.post("/upgrade/{booking_id}", response_model=Union[BookingOut, ErrorResponse], tags=["Bookings"])
+def upgrade_booking_endpoint(booking_id: int, request: UpgradeRequest, db: Session = Depends(get_db)):
+    """Upgrade an existing booking to a higher seat class."""
+    return booking.upgrade_booking(db, booking_id, request.new_seat_class)
+
+
+@app.post("/modify/{booking_id}", response_model=Union[BookingOut, ErrorResponse], tags=["Bookings"])
+def modify_booking_endpoint(booking_id: int, request: ModifyBookingRequest, db: Session = Depends(get_db)):
+    """Modify an existing booking seat class and passenger counts."""
+    return booking.modify_booking(
+        db,
+        booking_id,
+        request.seat_class,
+        request.adult_count,
+        request.lap_infant_count,
+        request.seated_infant_count
+    )
+
+
 @app.post("/register", response_model=Union[UserOut, ErrorResponse], tags=["Users"])
 def register_user_endpoint(request: UserRegistration, db: Session = Depends(get_db)):
     """Register a new user with a name and unique email."""
@@ -274,6 +294,8 @@ def get_user_endpoint(name: str, email: str, db: Session = Depends(get_db)):
 # ==================== JAVA SERVICE INTEGRATION ====================
 
 JAVA_SERVICE_URL = os.getenv("JAVA_SERVICE_URL", "http://localhost:8080")
+LOCAL_QUOTES: dict[str, dict] = {}
+LOCAL_HOLDS: dict[str, dict] = {}
 
 
 @app.post("/internal/bookings/from-hold", response_model=BookingOut, tags=["Internal"])
@@ -295,97 +317,303 @@ def create_booking_from_hold(hold_data: dict, db: Session = Depends(get_db)):
     return result
 
 
-# ==================== JAVA SERVICE PROXY ENDPOINTS ====================
+# ==================== JAVA SERVICE PROXY / LOCAL FALLBACK ENDPOINTS ====================
+
+def _utc_now() -> datetime:
+    """Return current UTC time."""
+    return datetime.now(timezone.utc)
+
+
+def _seat_price(base_price: int, seat_class: str) -> int:
+    """Return computed seat price for a seat class."""
+    multiplier = booking.SEAT_CLASS_MULTIPLIERS.get(seat_class, 1.0)
+    return int(base_price * multiplier)
+
+
+def _find_flight(db: Session, flight_id: int):
+    """Find flight by ID."""
+    return db.query(flight.Flight).filter(flight.Flight.flight_id == flight_id).first()
+
+
+def _find_user(db: Session, traveler_id: int, traveler_name: str):
+    """Find user by ID and name."""
+    return db.query(user.User).filter(
+        user.User.user_id == traveler_id,
+        user.User.name == traveler_name
+    ).first()
+
+
+def _seat_inventory(flight_row, seat_class: str) -> int:
+    """Return available seats for seat class."""
+    if seat_class == "business":
+        return flight_row.business_seats_available
+    if seat_class == "galaxium":
+        return flight_row.galaxium_seats_available
+    return flight_row.economy_seats_available
+
+
+def _build_local_quote(db: Session, quote_data: dict) -> dict:
+    """Create a local quote payload when Java service is unavailable."""
+    flight_id = quote_data.get("flightId")
+    seat_class = quote_data.get("seatClass", "economy")
+    adult_count = int(quote_data.get("adultCount", 1))
+    lap_infant_count = int(quote_data.get("lapInfantCount", 0))
+    seated_infant_count = int(quote_data.get("seatedInfantCount", 0))
+    traveler_id = quote_data.get("travelerId")
+    traveler_name = quote_data.get("travelerName")
+
+    if seat_class not in booking.SEAT_CLASS_MULTIPLIERS:
+        raise HTTPException(status_code=400, detail="Invalid seat class")
+
+    flight_row = db.query(flight.Flight).filter(flight.Flight.flight_id == flight_id).first()
+    if not flight_row:
+        raise HTTPException(status_code=404, detail="Flight not found")
+
+    user_row = db.query(user.User).filter(
+        user.User.user_id == traveler_id,
+        user.User.name == traveler_name
+    ).first()
+    if not user_row:
+        raise HTTPException(status_code=404, detail="Traveler not found or name mismatch")
+
+    quantity = adult_count + seated_infant_count
+    if quantity < 1:
+        raise HTTPException(status_code=400, detail="At least one seat is required")
+
+    available = _seat_inventory(flight_row, seat_class)
+    if available < quantity:
+        raise HTTPException(status_code=400, detail="Not enough seats available")
+
+    price_per_seat = _seat_price(flight_row.base_price, seat_class)
+    adult_subtotal = adult_count * price_per_seat
+    seated_infant_subtotal = seated_infant_count * price_per_seat
+    lap_infant_subtotal = price_per_seat if lap_infant_count > 0 else 0
+    total_price = adult_subtotal + seated_infant_subtotal + lap_infant_subtotal
+
+    quote_id = f"Q-LOCAL-{len(LOCAL_QUOTES) + 1:06d}"
+    expires_at = (_utc_now() + timedelta(hours=24)).isoformat()
+
+    quote = {
+        "quoteId": quote_id,
+        "flightId": flight_id,
+        "seatClass": seat_class,
+        "adultCount": adult_count,
+        "lapInfantCount": lap_infant_count,
+        "seatedInfantCount": seated_infant_count,
+        "travelerId": traveler_id,
+        "travelerName": traveler_name,
+        "quantity": quantity,
+        "pricePerSeat": price_per_seat,
+        "adultSubtotal": adult_subtotal,
+        "lapInfantSubtotal": lap_infant_subtotal,
+        "seatedInfantSubtotal": seated_infant_subtotal,
+        "totalPrice": total_price,
+        "expiresAt": expires_at,
+        "status": "CREATED",
+    }
+    LOCAL_QUOTES[quote_id] = quote
+    return quote
+
+
+def _create_local_hold(quote_id: str) -> dict:
+    """Create a local hold payload from a quote."""
+    quote = LOCAL_QUOTES.get(quote_id)
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    expires_at = datetime.fromisoformat(quote["expiresAt"])
+    if expires_at <= _utc_now():
+        raise HTTPException(status_code=400, detail="Quote has expired")
+
+    hold_id = f"H-LOCAL-{len(LOCAL_HOLDS) + 1:06d}"
+    reserved_until = (_utc_now() + timedelta(minutes=15)).isoformat()
+    hold = {
+        "holdId": hold_id,
+        "quoteId": quote_id,
+        "status": "HELD",
+        "reservedUntil": reserved_until,
+        "externalBookingReference": None,
+        "errorMessage": None,
+    }
+    LOCAL_HOLDS[hold_id] = hold
+    return hold
+
+
+def _get_local_hold(hold_id: str) -> dict:
+    """Return local hold and auto-expire if needed."""
+    hold = LOCAL_HOLDS.get(hold_id)
+    if not hold:
+        raise HTTPException(status_code=404, detail="Hold not found")
+
+    if hold["status"] == "HELD":
+        reserved_until = datetime.fromisoformat(hold["reservedUntil"])
+        if reserved_until <= _utc_now():
+            hold["status"] = "EXPIRED"
+    return hold
+
+
+def _confirm_local_hold(db: Session, hold_id: str) -> dict:
+    """Confirm local hold by creating booking in Python backend."""
+    hold = _get_local_hold(hold_id)
+    if hold["status"] == "CONFIRMED":
+        return hold
+    if hold["status"] != "HELD":
+        raise HTTPException(status_code=400, detail=f"Hold is not active: {hold['status']}")
+
+    reserved_until = datetime.fromisoformat(hold["reservedUntil"])
+    if reserved_until <= _utc_now():
+        hold["status"] = "EXPIRED"
+        raise HTTPException(status_code=400, detail="Hold has expired")
+
+    quote = LOCAL_QUOTES.get(hold["quoteId"])
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    result = booking.book_flight(
+        db,
+        user_id=quote["travelerId"],
+        name=quote["travelerName"],
+        flight_id=quote["flightId"],
+        seat_class=quote["seatClass"],
+    )
+    if isinstance(result, ErrorResponse):
+        hold["status"] = "CONFIRMATION_FAILED"
+        hold["errorMessage"] = result.details or result.error
+        raise HTTPException(status_code=400, detail=hold["errorMessage"])
+
+    hold["status"] = "CONFIRMED"
+    hold["externalBookingReference"] = str(result.booking_id)
+    return hold
+
+
+def _release_local_hold(hold_id: str) -> dict:
+    """Release local hold."""
+    hold = _get_local_hold(hold_id)
+    if hold["status"] != "HELD":
+        raise HTTPException(status_code=400, detail=f"Hold cannot be released: {hold['status']}")
+    hold["status"] = "RELEASED"
+    return hold
+
 
 @app.post("/quotes", tags=["Quotes"])
-async def create_quote(quote_data: dict):
-    """Proxy endpoint to create a quote in the Java hold service."""
+async def create_quote(quote_data: dict, db: Session = Depends(get_db)):
+    """Create quote via Java service or local fallback."""
+    force_local_fallback = os.getenv("DISABLE_JAVA_HOLD_SERVICE", "true").lower() in {"1", "true", "yes", "on"}
+    if force_local_fallback:
+        return _build_local_quote(db, quote_data)
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
                 f"{JAVA_SERVICE_URL}/api/v1/quotes",
                 json=quote_data,
-                timeout=30.0
+                timeout=5.0
             )
             response.raise_for_status()
             return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to create quote: {str(e)}"}
+        except httpx.HTTPError:
+            return _build_local_quote(db, quote_data)
 
 
 @app.get("/quotes/{quote_id}", tags=["Quotes"])
 async def get_quote(quote_id: str):
-    """Proxy endpoint to get a quote from the Java hold service."""
+    """Get quote via Java service or local fallback."""
+    force_local_fallback = os.getenv("DISABLE_JAVA_HOLD_SERVICE", "true").lower() in {"1", "true", "yes", "on"}
+    if force_local_fallback:
+        quote = LOCAL_QUOTES.get(quote_id)
+        if not quote:
+            return {"error": f"Failed to get quote: quote {quote_id} not found"}
+        return quote
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(
                 f"{JAVA_SERVICE_URL}/api/v1/quotes/{quote_id}",
-                timeout=30.0
+                timeout=5.0
             )
             response.raise_for_status()
             return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to get quote: {str(e)}"}
+        except httpx.HTTPError:
+            quote = LOCAL_QUOTES.get(quote_id)
+            if not quote:
+                return {"error": f"Failed to get quote: quote {quote_id} not found"}
+            return quote
 
 
 @app.post("/quotes/{quote_id}/holds", tags=["Holds"])
 async def create_hold(quote_id: str):
-    """Proxy endpoint to create a hold from a quote in the Java hold service."""
+    """Create hold via Java service or local fallback."""
+    force_local_fallback = os.getenv("DISABLE_JAVA_HOLD_SERVICE", "true").lower() in {"1", "true", "yes", "on"}
+    if force_local_fallback:
+        return _create_local_hold(quote_id)
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
                 f"{JAVA_SERVICE_URL}/api/v1/quotes/{quote_id}/holds",
-                timeout=30.0
+                timeout=5.0
             )
             response.raise_for_status()
             return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to create hold: {str(e)}"}
+        except httpx.HTTPError:
+            return _create_local_hold(quote_id)
 
 
 @app.get("/holds/{hold_id}", tags=["Holds"])
 async def get_hold(hold_id: str):
-    """Proxy endpoint to get a hold from the Java hold service."""
+    """Get hold via Java service or local fallback."""
+    force_local_fallback = os.getenv("DISABLE_JAVA_HOLD_SERVICE", "true").lower() in {"1", "true", "yes", "on"}
+    if force_local_fallback:
+        return _get_local_hold(hold_id)
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(
                 f"{JAVA_SERVICE_URL}/api/v1/holds/{hold_id}",
-                timeout=30.0
+                timeout=5.0
             )
             response.raise_for_status()
             return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to get hold: {str(e)}"}
+        except httpx.HTTPError:
+            return _get_local_hold(hold_id)
 
 
 @app.post("/holds/{hold_id}/confirm", tags=["Holds"])
-async def confirm_hold(hold_id: str):
-    """Proxy endpoint to confirm a hold in the Java hold service."""
+async def confirm_hold(hold_id: str, db: Session = Depends(get_db)):
+    """Confirm hold via Java service or local fallback."""
+    force_local_fallback = os.getenv("DISABLE_JAVA_HOLD_SERVICE", "true").lower() in {"1", "true", "yes", "on"}
+    if force_local_fallback:
+        return _confirm_local_hold(db, hold_id)
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
                 f"{JAVA_SERVICE_URL}/api/v1/holds/{hold_id}/confirm",
-                timeout=30.0
+                timeout=5.0
             )
             response.raise_for_status()
             return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to confirm hold: {str(e)}"}
+        except httpx.HTTPError:
+            return _confirm_local_hold(db, hold_id)
 
 
 @app.post("/holds/{hold_id}/release", tags=["Holds"])
 async def release_hold(hold_id: str):
-    """Proxy endpoint to release a hold in the Java hold service."""
+    """Release hold via Java service or local fallback."""
+    force_local_fallback = os.getenv("DISABLE_JAVA_HOLD_SERVICE", "true").lower() in {"1", "true", "yes", "on"}
+    if force_local_fallback:
+        return _release_local_hold(hold_id)
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
                 f"{JAVA_SERVICE_URL}/api/v1/holds/{hold_id}/release",
-                timeout=30.0
+                timeout=5.0
             )
             response.raise_for_status()
             return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to release hold: {str(e)}"}
+        except httpx.HTTPError:
+            return _release_local_hold(hold_id)
 
     """Retrieve a user's information by providing both name and email."""
     return user.get_user(db, name, email)

@@ -37,7 +37,7 @@ services:
   java-service:
     profiles:
       - hold-service
-    build: ./booking_system_inventory_hold_service
+    build: ./inventory_hold_service
     platform: linux/amd64
     ports:
       - "8082:8080"

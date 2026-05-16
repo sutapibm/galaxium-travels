@@ -17,7 +17,7 @@ export const UserIdentification = ({ isOpen, onClose, onSuccess }: UserIdentific
   const [isLoading, setIsLoading] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   
-  //validate email addresses
+  // Validate email addresses
   const validateEmail = (email: string): boolean => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
@@ -68,8 +68,13 @@ export const UserIdentification = ({ isOpen, onClose, onSuccess }: UserIdentific
         onSuccess();
         onClose();
       }
-    } catch (error: any) {
-      toast.error(error.details || error.error || 'An error occurred');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'details' in error
+        ? (error as { details?: string; error?: string }).details || (error as { details?: string; error?: string }).error || 'An error occurred'
+        : 'An error occurred';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +95,7 @@ export const UserIdentification = ({ isOpen, onClose, onSuccess }: UserIdentific
       size="sm"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-star-white/70 text-sm mb-4">
+        <p className="text-[#525252] text-sm mb-4">
           {isNewUser
             ? 'Create an account to book your flight'
             : 'Enter your name and email to continue'}
@@ -122,7 +127,7 @@ export const UserIdentification = ({ isOpen, onClose, onSuccess }: UserIdentific
           <button
             type="button"
             onClick={() => setIsNewUser(!isNewUser)}
-            className="text-sm text-cosmic-purple hover:text-nebula-pink transition-colors"
+            className="text-sm text-[#0f62fe] hover:text-[#0043ce] transition-colors"
           >
             {isNewUser
               ? 'Already have an account? Sign in'

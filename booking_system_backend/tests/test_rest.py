@@ -195,8 +195,8 @@ class TestFlightsEndpoint:
         response = client.get("/flights?route_category=inner_planets")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["destination"] == "Mars"
+        assert len(data) == 2
+        assert {flight["destination"] for flight in data} == {"Mars", "Jupiter"}
 
     def test_get_flights_with_combined_filters(self, client, db_session):
         """Test getting flights with multiple filters combined."""
@@ -284,8 +284,10 @@ class TestBookEndpoint:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=5
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
         flight = db_session.query(Flight).first()
@@ -318,6 +320,38 @@ class TestBookEndpoint:
         assert data["success"] == False
         assert data["error_code"] == "FLIGHT_NOT_FOUND"
 
+    def test_book_flight_with_discounted_seated_infant(self, client, db_session, sample_user_data):
+        """Test booking endpoint supports discounted seated infant."""
+        user_response = client.post("/register", json=sample_user_data)
+        user_id = user_response.json()["user_id"]
+
+        db_session.add(Flight(
+            origin="Earth",
+            destination="Mars",
+            departure_time="2099-01-01T09:00:00Z",
+            arrival_time="2099-01-01T17:00:00Z",
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
+        ))
+        db_session.commit()
+        flight = db_session.query(Flight).first()
+
+        response = client.post("/book", json={
+            "user_id": user_id,
+            "name": sample_user_data["name"],
+            "flight_id": flight.flight_id,
+            "seated_infant_count": 1
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "booked"
+        assert data["seated_infant_count"] == 1
+        assert data["seated_infant_price_paid"] == 500000
+        assert data["price_paid"] == 1500000
+
 
 class TestBookingsEndpoint:
     """Test /bookings/{user_id} endpoint."""
@@ -334,8 +368,10 @@ class TestBookingsEndpoint:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=5
+            base_price=1000000,
+            economy_seats_available=5,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
         flight = db_session.query(Flight).first()
@@ -344,7 +380,15 @@ class TestBookingsEndpoint:
             user_id=user_id,
             flight_id=flight.flight_id,
             status="booked",
-            booking_time="2099-01-01T10:00:00Z"
+            booking_time="2099-01-01T10:00:00Z",
+            seat_class="economy",
+            price_paid=1000000,
+            adult_count=1,
+            lap_infant_count=0,
+            seated_infant_count=0,
+            adult_price_paid=1000000,
+            lap_infant_price_paid=0,
+            seated_infant_price_paid=0
         ))
         db_session.commit()
 
@@ -376,8 +420,10 @@ class TestCancelEndpoint:
             destination="Mars",
             departure_time="2099-01-01T09:00:00Z",
             arrival_time="2099-01-01T17:00:00Z",
-            price=1000000,
-            seats_available=4
+            base_price=1000000,
+            economy_seats_available=4,
+            business_seats_available=2,
+            galaxium_seats_available=1
         ))
         db_session.commit()
         flight = db_session.query(Flight).first()
@@ -386,7 +432,15 @@ class TestCancelEndpoint:
             user_id=user_id,
             flight_id=flight.flight_id,
             status="booked",
-            booking_time="2099-01-01T10:00:00Z"
+            booking_time="2099-01-01T10:00:00Z",
+            seat_class="economy",
+            price_paid=1000000,
+            adult_count=1,
+            lap_infant_count=0,
+            seated_infant_count=0,
+            adult_price_paid=1000000,
+            lap_infant_price_paid=0,
+            seated_infant_price_paid=0
         ))
         db_session.commit()
         booking = db_session.query(Booking).first()

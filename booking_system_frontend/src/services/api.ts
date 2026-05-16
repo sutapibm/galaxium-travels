@@ -5,6 +5,7 @@ import type {
   User,
   BookingRequest,
   UserRegistration,
+  ModifyBookingRequest,
   ErrorResponse,
   Quote,
   Hold,
@@ -56,7 +57,7 @@ export interface FlightFilters {
   sort?: 'price' | 'departure_time' | 'duration';
   order?: 'asc' | 'desc';
   // Phase 1: Core Filters from feature branch
-  sort_by?: 'departure_time' | 'base_price' | 'duration' | 'seats_available';
+  sort_by?: 'departure_time' | 'base_price' | 'duration' | 'seats_available' | 'best_value' | 'most_premium' | 'balanced';
   sort_order?: 'asc' | 'desc';
   seat_class?: 'economy' | 'business' | 'galaxium';
   // Phase 2: Additional Filters from feature branch
@@ -66,6 +67,11 @@ export interface FlightFilters {
   min_seats_available?: number;
   // Phase 3: Popular Routes from feature branch
   route_category?: 'inner_planets' | 'outer_planets' | 'moons';
+  // Phase 4: Advanced Class Filters (Enhancement)
+  min_economy_seats?: number;
+  min_business_seats?: number;
+  min_galaxium_seats?: number;
+  premium_only?: boolean;
 }
 
 /**
@@ -146,12 +152,42 @@ export const cancelBooking = async (
   return response.data;
 };
 
+/**
+ * Upgrade a booking to a higher seat class
+ */
+export const upgradeBooking = async (
+  bookingId: number,
+  newSeatClass: 'economy' | 'business' | 'galaxium'
+): Promise<Booking | ErrorResponse> => {
+  const response = await api.post<Booking | ErrorResponse>(
+    `/upgrade/${bookingId}`,
+    { new_seat_class: newSeatClass }
+  );
+  return response.data;
+};
+
+/**
+ * Modify a booking seat class and passenger counts
+ */
+export const modifyBooking = async (
+  bookingId: number,
+  data: ModifyBookingRequest
+): Promise<Booking | ErrorResponse> => {
+  const response = await api.post<Booking | ErrorResponse>(
+    `/modify/${bookingId}`,
+    data
+  );
+  return response.data;
+};
+
 // ==================== Quote & Hold Endpoints (Java Inventory Hold Service) ====================
 
 export interface CreateQuoteRequest {
   flightId: number;
   seatClass: string;
-  quantity: number;
+  adultCount: number;
+  lapInfantCount: number;
+  seatedInfantCount: number;
   travelerId: number;
   travelerName: string;
 }

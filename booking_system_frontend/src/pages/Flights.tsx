@@ -98,10 +98,10 @@ export const Flights = () => {
         animate={{ opacity: 1, y: 0 }}
         className="text-center"
       >
-        <h1 className="text-4xl md:text-5xl font-bold text-star-white mb-4">
-          Available <span className="bg-cosmic-gradient bg-clip-text text-transparent">Flights</span>
+        <h1 className="text-4xl md:text-5xl font-bold text-[#161616] dark-theme-text mb-4">
+          Available <span className="text-[#0f62fe] dark-theme-blue-text">Flights</span>
         </h1>
-        <p className="text-star-white/70 text-lg">
+        <p className="text-[#525252] dark-theme-subtle text-lg">
           Choose your destination and embark on an interplanetary adventure
         </p>
       </motion.div>
@@ -111,16 +111,19 @@ export const Flights = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass-card p-6"
+        className="carbon-card p-6"
       >
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-star-white/50" size={20} />
+          <Search
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#6f6f6f] dark-theme-helper"
+            size={16}
+          />
           <input
             type="text"
             placeholder="Search by origin or destination..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-star-white placeholder-star-white/50 focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+            className="w-full border border-[#c6c6c6] bg-white text-[#161616] pl-14 pr-4 py-4 leading-6 outline-none focus:border-[#0f62fe] focus:outline-2 focus:outline-[#0f62fe] placeholder:text-[#6f6f6f] [data-theme='dark']:border-[#6f6f6f] [data-theme='dark']:bg-[#393939] [data-theme='dark']:text-[#f4f4f4] [data-theme='dark']:placeholder:text-[#a8a8a8]"
           />
         </div>
       </motion.div>
@@ -135,7 +138,7 @@ export const Flights = () => {
       </motion.div>
 
       {/* Results Count */}
-      <div className="text-center text-star-white/70">
+      <div className="text-center text-[#525252] dark-theme-subtle">
         Showing {displayFlights.length} flight{displayFlights.length !== 1 ? 's' : ''}
       </div>
 
@@ -148,7 +151,7 @@ export const Flights = () => {
           animate={{ opacity: 1 }}
           className="text-center py-12"
         >
-          <p className="text-star-white/70 text-lg">
+          <p className="text-[#525252] dark-theme-subtle text-lg">
             No flights found matching your criteria
           </p>
         </motion.div>

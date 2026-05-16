@@ -31,6 +31,8 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
   const { user } = useUser();
   const [step, setStep] = useState<Step>('select');
   const [selectedClass, setSelectedClass] = useState<SeatClass>('economy');
+  const [lapInfantCount, setLapInfantCount] = useState(0);
+  const [seatedInfantCount, setSeatedInfantCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [hold, setHold] = useState<Hold | null>(null);
@@ -41,6 +43,8 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
     if (isOpen) {
       setStep('select');
       setSelectedClass('economy');
+      setLapInfantCount(0);
+      setSeatedInfantCount(0);
       setQuote(null);
       setHold(null);
       setTimeLeft(0);
@@ -70,9 +74,9 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
       price: flight.economy_price,
       seats: flight.economy_seats_available,
       icon: Plane,
-      color: 'text-blue-400',
-      bgColor: 'bg-blue-500/10',
-      borderColor: 'border-blue-500/30',
+      color: 'text-[#0f62fe]',
+      bgColor: 'bg-[#edf5ff]',
+      borderColor: 'border-[#78a9ff]',
       features: ['Standard seating', 'In-flight entertainment', 'Complimentary snacks'],
     },
     {
@@ -81,9 +85,9 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
       price: flight.business_price,
       seats: flight.business_seats_available,
       icon: Crown,
-      color: 'text-purple-400',
-      bgColor: 'bg-purple-500/10',
-      borderColor: 'border-purple-500/30',
+      color: 'text-[#8a3ffc]',
+      bgColor: 'bg-[#f6f2ff]',
+      borderColor: 'border-[#be95ff]',
       features: ['Premium seating', 'Priority boarding', 'Gourmet meals', 'Extra legroom'],
     },
     {
@@ -92,9 +96,9 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
       price: flight.galaxium_price,
       seats: flight.galaxium_seats_available,
       icon: Rocket,
-      color: 'text-alien-green',
-      bgColor: 'bg-alien-green/10',
-      borderColor: 'border-alien-green/30',
+      color: 'text-[#198038]',
+      bgColor: 'bg-[#defbe6]',
+      borderColor: 'border-[#42be65]',
       features: ['Luxury pods', 'VIP lounge access', 'Personal concierge', 'Zero-G experience'],
     },
   ];
@@ -107,34 +111,34 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
   const isExpired = hold !== null && timeLeft === 0;
 
   const flightSummary = (
-    <div className="glass-card p-4 bg-white/5">
+    <div className="carbon-card p-4">
       <div className="flex items-center gap-3 mb-3">
-        <div className="p-2 rounded-lg bg-cosmic-gradient">
-          <Plane className="text-white" size={20} />
+        <div className="p-2 rounded-lg bg-[#edf5ff] dark-theme-blue-surface">
+          <Plane className="text-[#0f62fe] dark-theme-blue-text" size={20} />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-star-white">
+          <h3 className="text-lg font-bold text-[#161616] dark-theme-text">
             {flight.origin} → {flight.destination}
           </h3>
-          <p className="text-xs text-star-white/60">Flight #{flight.flight_id}</p>
+          <p className="text-xs text-[#6f6f6f] dark-theme-helper">Flight #{flight.flight_id}</p>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3 text-sm">
         <div>
-          <p className="text-xs text-star-white/60 mb-1">Departure</p>
-          <p className="text-star-white font-medium">
+          <p className="text-xs text-[#6f6f6f] dark-theme-helper mb-1">Departure</p>
+          <p className="text-[#161616] dark-theme-text font-medium">
             {formatDate(flight.departure_time, 'MMM dd')}
           </p>
         </div>
         <div>
-          <p className="text-xs text-star-white/60 mb-1">Arrival</p>
-          <p className="text-star-white font-medium">
+          <p className="text-xs text-[#6f6f6f] dark-theme-helper mb-1">Arrival</p>
+          <p className="text-[#161616] dark-theme-text font-medium">
             {formatDate(flight.arrival_time, 'MMM dd')}
           </p>
         </div>
         <div>
-          <p className="text-xs text-star-white/60 mb-1">Duration</p>
-          <p className="text-star-white font-medium">
+          <p className="text-xs text-[#6f6f6f] dark-theme-helper mb-1">Duration</p>
+          <p className="text-[#161616] dark-theme-text font-medium">
             {calculateDuration(flight.departure_time, flight.arrival_time)}
           </p>
         </div>
@@ -153,7 +157,9 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
       const newQuote = await createQuote({
         flightId: flight.flight_id,
         seatClass: selectedClass,
-        quantity: 1,
+        adultCount: 1,
+        lapInfantCount,
+        seatedInfantCount,
         travelerId: user.user_id,
         travelerName: user.name,
       });
@@ -181,7 +187,13 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
           quoteId: quote.quoteId,
           flightId: flight.flight_id,
           seatClass: selectedClass,
+          adultCount: quote.adultCount,
+          lapInfantCount: quote.lapInfantCount,
+          seatedInfantCount: quote.seatedInfantCount,
           pricePerSeat: quote.pricePerSeat,
+          adultSubtotal: quote.adultSubtotal,
+          lapInfantSubtotal: quote.lapInfantSubtotal,
+          seatedInfantSubtotal: quote.seatedInfantSubtotal,
           totalPrice: quote.totalPrice,
           reservedUntil: newHold.reservedUntil,
         });
@@ -246,58 +258,113 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
     <div className="space-y-6">
       {flightSummary}
 
-      <div>
-        <h4 className="text-sm font-semibold text-star-white mb-3">Select Seat Class</h4>
-        <div className="space-y-3">
-          {seatClasses.map((sc) => {
-            const Icon = sc.icon;
-            const isSelected = selectedClass === sc.class;
-            const isSoldOut = sc.seats === 0;
+      <div className="space-y-3">
+        {seatClasses.map((sc) => {
+          const Icon = sc.icon;
+          const isSelected = selectedClass === sc.class;
+          const isSoldOut = sc.seats === 0;
 
-            return (
-              <button
-                key={sc.class}
-                onClick={() => !isSoldOut && setSelectedClass(sc.class)}
-                disabled={isSoldOut}
-                className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
-                  isSelected
-                    ? `${sc.borderColor} ${sc.bgColor}`
-                    : 'border-white/10 bg-white/5 hover:border-white/20'
-                } ${isSoldOut ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Icon size={20} className={sc.color} />
-                    <span className="font-semibold text-star-white">{sc.name}</span>
-                    {isSelected && <Check size={18} className={sc.color} />}
+          return (
+            <button
+              key={sc.class}
+              onClick={() => !isSoldOut && setSelectedClass(sc.class)}
+              disabled={isSoldOut}
+              className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                isSelected
+                  ? `${sc.borderColor} ${sc.bgColor}`
+                  : 'border-[#e0e0e0] dark-theme-border bg-white dark:bg-[#393939] hover:border-[#0f62fe]'
+              } ${isSoldOut ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Icon size={20} className={sc.color} />
+                  <span className="font-semibold text-[#161616] dark-theme-text">{sc.name}</span>
+                  {isSelected && <Check size={18} className={sc.color} />}
+                </div>
+                <div className="text-right">
+                  <div className={`text-lg font-bold ${sc.color}`}>
+                    {formatCurrency(sc.price)}
                   </div>
-                  <div className="text-right">
-                    <div className={`text-lg font-bold ${sc.color}`}>
-                      {formatCurrency(sc.price)}
-                    </div>
-                    <div className="text-xs text-star-white/60">
-                      {isSoldOut ? 'Sold Out' : `${sc.seats} left`}
-                    </div>
+                  <div className="text-xs text-[#6f6f6f] dark-theme-helper">
+                    {isSoldOut ? 'Sold Out' : `${sc.seats} left`}
                   </div>
                 </div>
-                <ul className="text-xs text-star-white/70 space-y-1">
-                  {sc.features.map((f, i) => (
-                    <li key={i}>• {f}</li>
-                  ))}
-                </ul>
-              </button>
-            );
-          })}
-        </div>
+              </div>
+              <ul className="text-xs text-[#525252] dark-theme-subtle space-y-1">
+                {sc.features.map((f, i) => (
+                  <li key={i}>• {f}</li>
+                ))}
+              </ul>
+            </button>
+          );
+        })}
       </div>
 
-      {user && (
-        <div className="glass-card p-4 bg-white/5">
-          <h4 className="text-sm font-semibold text-star-white mb-2">Passenger</h4>
-          <p className="text-star-white">{user.name}</p>
-          <p className="text-star-white/60 text-sm">{user.email}</p>
+      <div className="carbon-card p-4 space-y-4">
+        <div>
+          <h4 className="text-sm font-semibold text-[#161616] dark-theme-text mb-2">Passengers</h4>
+          {user && (
+            <>
+              <p className="text-[#161616] dark-theme-text">Adult: {user.name}</p>
+              <p className="text-[#6f6f6f] dark-theme-helper text-sm">{user.email}</p>
+            </>
+          )}
         </div>
-      )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-lg border border-[#e0e0e0] dark-theme-border bg-[#f4f4f4] dark:bg-[#393939] p-3">
+            <p className="text-xs text-[#6f6f6f] dark-theme-helper mb-2">Lap infants</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLapInfantCount((count) => Math.max(0, count - 1))}
+                className="h-8 w-8 rounded border border-[#c6c6c6] dark:border-[#6f6f6f] text-[#161616] dark:text-[#f4f4f4] bg-white dark:bg-[#262626]"
+                type="button"
+              >
+                −
+              </button>
+              <span className="min-w-6 text-center text-[#161616] dark-theme-text font-semibold">
+                {lapInfantCount}
+              </span>
+              <button
+                onClick={() => setLapInfantCount((count) => count + 1)}
+                className="h-8 w-8 rounded border border-[#c6c6c6] dark:border-[#6f6f6f] text-[#161616] dark:text-[#f4f4f4] bg-white dark:bg-[#262626]"
+                type="button"
+              >
+                +
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-[#6f6f6f] dark-theme-helper">Only one infant gets special pricing.</p>
+          </div>
+
+          <div className="rounded-lg border border-[#e0e0e0] dark-theme-border bg-[#f4f4f4] dark:bg-[#393939] p-3">
+            <p className="text-xs text-[#6f6f6f] dark-theme-helper mb-2">Seated infants</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSeatedInfantCount((count) => Math.max(0, count - 1))}
+                className="h-8 w-8 rounded border border-[#c6c6c6] dark:border-[#6f6f6f] text-[#161616] dark:text-[#f4f4f4] bg-white dark:bg-[#262626]"
+                type="button"
+              >
+                −
+              </button>
+              <span className="min-w-6 text-center text-[#161616] dark-theme-text font-semibold">
+                {seatedInfantCount}
+              </span>
+              <button
+                onClick={() => setSeatedInfantCount((count) => count + 1)}
+                className="h-8 w-8 rounded border border-[#c6c6c6] dark:border-[#6f6f6f] text-[#161616] dark:text-[#f4f4f4] bg-white dark:bg-[#262626]"
+                type="button"
+              >
+                +
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-[#6f6f6f] dark-theme-helper">Seated infants use a seat.</p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-[#ffd7c2] dark-theme-orange-surface bg-[#fff1e8] p-3 text-xs text-[#525252] dark-theme-subtle">
+          1 adult is included. Lap infants do not use a seat. Seated infants use a seat. Only one infant per booking gets discounted or free pricing.
+        </div>
+      </div>
 
       <div className="flex gap-3">
         <Button variant="secondary" onClick={onClose} disabled={isLoading} className="flex-1">
@@ -315,32 +382,56 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
     const Icon = selectedClassData?.icon || Plane;
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-cosmic-purple/10 border border-cosmic-purple/30">
-          <Tag size={16} className="text-cosmic-purple" />
-          <span className="text-xs text-star-white/60">Quote ID</span>
-          <span className="font-mono font-bold text-cosmic-purple ml-auto">{quote?.quoteId}</span>
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-[#f6f2ff] dark-theme-purple-surface border border-[#be95ff]">
+          <Tag size={16} className="text-[#8a3ffc] dark-theme-purple-text" />
+          <span className="text-xs text-[#6f6f6f] dark-theme-helper">Quote ID</span>
+          <span className="font-mono font-bold text-[#8a3ffc] dark-theme-purple-text ml-auto">{quote?.quoteId}</span>
         </div>
 
         {flightSummary}
 
-        <div className="glass-card p-4 bg-white/5 space-y-3">
-          <h4 className="text-sm font-semibold text-star-white">Price Breakdown</h4>
+        <div className="carbon-card p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-[#161616] dark-theme-text">Price Breakdown</h4>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Icon size={16} className={selectedClassData?.color} />
-              <span className="text-sm text-star-white/70">{selectedClassData?.name} × 1</span>
+              <span className="text-sm text-[#525252] dark-theme-subtle">Adult × {quote?.adultCount || 1}</span>
             </div>
-            <span className="text-star-white font-medium">
-              {formatCurrency(quote?.pricePerSeat || 0)}
+            <span className="text-[#161616] dark-theme-text font-medium">
+              {formatCurrency(quote?.adultSubtotal || 0)}
             </span>
           </div>
-          <div className="border-t border-white/10 pt-3 flex items-center justify-between">
-            <span className="font-semibold text-star-white">Total</span>
-            <span className="text-xl font-bold text-alien-green">
+          {(quote?.seatedInfantCount || 0) > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[#525252] dark-theme-subtle">
+                Seated infant × {quote?.seatedInfantCount || 0}
+              </span>
+              <span className="text-[#161616] dark-theme-text font-medium">
+                {formatCurrency(quote?.seatedInfantSubtotal || 0)}
+              </span>
+            </div>
+          )}
+          {(quote?.lapInfantCount || 0) > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[#525252] dark-theme-subtle">
+                Lap infant × {quote?.lapInfantCount || 0}
+              </span>
+              <span className="text-[#161616] dark-theme-text font-medium">
+                {formatCurrency(quote?.lapInfantSubtotal || 0)}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center justify-between text-xs text-[#6f6f6f] dark-theme-helper">
+            <span>Seats required</span>
+            <span>{quote?.quantity || 1}</span>
+          </div>
+          <div className="border-t border-[#e0e0e0] dark-theme-border pt-3 flex items-center justify-between">
+            <span className="font-semibold text-[#161616] dark-theme-text">Total</span>
+            <span className="text-xl font-bold text-[#198038]">
               {formatCurrency(quote?.totalPrice || 0)}
             </span>
           </div>
-          <p className="text-xs text-star-white/50">
+          <p className="text-xs text-[#6f6f6f] dark-theme-helper">
             Quote valid for 24 hours · Price calculated by inventory service
           </p>
         </div>
@@ -365,10 +456,10 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
   // Step 3: Hold active with countdown
   const renderHoldStep = () => (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 p-3 rounded-lg bg-alien-green/10 border border-alien-green/30">
-        <Zap size={16} className="text-alien-green" />
-        <span className="text-xs text-star-white/60">Hold ID</span>
-        <span className="font-mono font-bold text-alien-green ml-auto">{hold?.holdId}</span>
+      <div className="flex items-center gap-2 p-3 rounded-lg bg-[#defbe6] dark-theme-green-surface border border-[#42be65]">
+        <Zap size={16} className="text-[#198038] dark-theme-green-text" />
+        <span className="text-xs text-[#6f6f6f] dark-theme-helper">Hold ID</span>
+        <span className="font-mono font-bold text-[#198038] dark-theme-green-text ml-auto">{hold?.holdId}</span>
       </div>
 
       {/* Countdown timer */}
@@ -379,7 +470,7 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
             : 'border-solar-orange/50 bg-solar-orange/5'
         }`}
       >
-        <p className="text-xs text-star-white/60 mb-2 uppercase tracking-widest">
+        <p className="text-xs text-[#6f6f6f] dark-theme-helper mb-2 uppercase tracking-widest">
           {isExpired ? 'Hold Expired' : 'Time to Confirm'}
         </p>
         <div
@@ -390,7 +481,7 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
           {isExpired ? 'EXPIRED' : timerDisplay}
         </div>
         {!isExpired && (
-          <p className="text-xs text-star-white/50 mt-2">
+          <p className="text-xs text-[#6f6f6f] dark-theme-helper mt-2">
             Seat is reserved — confirm before time runs out
           </p>
         )}
@@ -398,12 +489,12 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
 
       {flightSummary}
 
-      <div className="flex items-center justify-between p-4 rounded-xl bg-cosmic-gradient">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-[#edf5ff] dark-theme-blue-surface border border-[#78a9ff]">
         <div className="flex items-center gap-2">
-          <DollarSign className="text-white" size={20} />
-          <span className="text-white font-semibold">Total</span>
+          <DollarSign className="text-[#0f62fe] dark-theme-blue-text" size={20} />
+          <span className="text-[#161616] dark-theme-text font-semibold">Total</span>
         </div>
-        <span className="text-xl font-bold text-white">
+        <span className="text-xl font-bold text-[#161616] dark-theme-text">
           {formatCurrency(quote?.totalPrice || 0)}
         </span>
       </div>
@@ -427,7 +518,7 @@ export const BookingModal = ({ isOpen, onClose, flight, onSuccess }: BookingModa
               Confirm Booking
             </Button>
           </div>
-          <p className="text-xs text-star-white/50 text-center">
+          <p className="text-xs text-[#6f6f6f] dark-theme-helper text-center">
             Closing keeps your hold active — find it in My Bookings
           </p>
         </>

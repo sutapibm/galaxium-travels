@@ -229,7 +229,7 @@ build_and_push_frontend() {
 build_and_push_java_service() {
     print_header "Building and Pushing Java Hold Service Image"
     
-    cd booking_system_inventory_hold_service
+    cd inventory_hold_service
     
     local image_name="${REGISTRY_URL}/galaxium-hold-service:latest"
     

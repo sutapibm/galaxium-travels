@@ -23,8 +23,13 @@ This file provides guidance to agents when working with code in this repository.
 
 ### Frontend
 - **API base URL from env var** - Uses `import.meta.env.VITE_API_URL` (not process.env)
-- **Error responses have specific structure** - Check `success: false` field, not HTTP status codes (api.ts line 112)
+- **Error responses have specific structure** - Check `success: false` field, not HTTP status codes (api.ts line 210)
+- **Java proxy error handling** - Python proxy returns `{"error": "..."}` with HTTP 200 when Java service unavailable (api.ts line 161-164)
 - **Custom Tailwind colors** - Space-themed palette defined in tailwind.config.js (not standard Tailwind)
+
+### Development Environment
+- **Pyright disabled** - Type checking completely disabled via pyrightconfig.json (intentional for demo)
+- **Virtual environment location** - Backend uses `.venv` in booking_system_backend/ (not project root)
 
 ## Commands
 - **Backend tests**: `cd booking_system_backend && pytest` (must run from backend dir)
@@ -35,6 +40,6 @@ This file provides guidance to agents when working with code in this repository.
 - **Test containers**: `./deployment_scripts/local/test-containers.sh`
 
 ## Java Hold Service
-- **Directory**: `booking_system_inventory_hold_service/` (currently empty - not yet implemented)
-- **Purpose**: Planned Spring Boot service for managing temporary seat holds
-- **Status**: The startup script gracefully skips this service if not present
+- **Directory**: `inventory_hold_service/`
+- **Purpose**: Spring Boot service for managing quotes and temporary seat holds
+- **Status**: Restored in the workspace; local startup and deployment scripts should point to this directory

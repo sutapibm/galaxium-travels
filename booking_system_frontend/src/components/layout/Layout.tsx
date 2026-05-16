@@ -1,56 +1,36 @@
 import type { ReactNode } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
-import { Starfield } from '../common/Starfield';
 import { Toaster } from 'react-hot-toast';
+import { useTheme } from '../../App';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export const Layout = ({ children }: LayoutProps) => {
+  const { theme } = useTheme();
+
   return (
-    <div className="min-h-screen flex flex-col relative">
-      {/* Animated starfield background */}
-      <Starfield />
-      
-      {/* Toast notifications */}
+    <div className="carbon-shell">
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
           style: {
-            background: 'rgba(10, 25, 41, 0.95)',
-            color: '#F9FAFB',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10B981',
-              secondary: '#F9FAFB',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#EF4444',
-              secondary: '#F9FAFB',
-            },
+            background: theme === 'dark' ? '#262626' : '#ffffff',
+            color: theme === 'dark' ? '#f4f4f4' : '#161616',
+            border: `1px solid ${theme === 'dark' ? '#393939' : '#e0e0e0'}`,
           },
         }}
       />
-      
-      {/* Header */}
+
       <Header />
-      
-      {/* Main content */}
-      <main className="relative z-10 flex-1 pt-24 pb-8">
-        <div className="container mx-auto px-4">
-          {children}
-        </div>
+
+      <main className="carbon-main">
+        <div className="carbon-container">{children}</div>
       </main>
-      
-      {/* Footer */}
+
       <Footer />
     </div>
   );

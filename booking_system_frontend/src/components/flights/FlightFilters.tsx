@@ -25,17 +25,17 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
   const activeFilterCount = Object.keys(filters).length;
 
   return (
-    <div className="glass-card p-6 space-y-4">
+    <div className="carbon-filter-panel p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-2 text-star-white hover:text-cosmic-purple transition-colors"
+          className="flex items-center gap-2 text-[#161616] dark-theme-text hover:text-[#0f62fe] dark-theme-blue-text transition-colors"
         >
           <Filter size={20} />
           <span className="font-semibold">Filters</span>
           {activeFilterCount > 0 && (
-            <span className="px-2 py-0.5 bg-cosmic-purple/20 text-cosmic-purple text-xs rounded-full">
+            <span className="px-2 py-0.5 carbon-pill text-xs rounded-full">
               {activeFilterCount}
             </span>
           )}
@@ -45,7 +45,7 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
         {activeFilterCount > 0 && (
           <button
             onClick={onReset}
-            className="text-sm text-star-white/70 hover:text-star-white transition-colors"
+            className="text-sm text-[#525252] dark-theme-subtle hover:text-[#161616] dark-theme-text transition-colors"
           >
             Reset All
           </button>
@@ -64,22 +64,26 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
           >
             {/* Phase 1: Sort */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-star-white">Sort By</label>
+              <label className="text-sm font-medium text-[#161616] dark-theme-text">Sort By</label>
               <div className="grid grid-cols-2 gap-2">
                 <select
                   value={filters.sort_by || 'departure_time'}
                   onChange={(e) => updateFilter('sort_by', e.target.value)}
-                  className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-star-white text-sm focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+                  className="carbon-input text-sm"
                 >
                   <option value="departure_time">Departure Time</option>
                   <option value="base_price">Price</option>
                   <option value="duration">Duration</option>
                   <option value="seats_available">Availability</option>
+                  <option value="best_value">🏆 Best Value</option>
+                  <option value="most_premium">✨ Most Premium</option>
+                  <option value="balanced">⚖️ Balanced</option>
                 </select>
                 <select
                   value={filters.sort_order || 'asc'}
                   onChange={(e) => updateFilter('sort_order', e.target.value)}
-                  className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-star-white text-sm focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+                  className="carbon-input text-sm"
+                  disabled={['best_value', 'most_premium', 'balanced'].includes(filters.sort_by || '')}
                 >
                   <option value="asc">Ascending</option>
                   <option value="desc">Descending</option>
@@ -89,53 +93,53 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
 
             {/* Phase 1: Date Range */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-star-white">Departure Date</label>
+              <label className="text-sm font-medium text-[#161616] dark-theme-text">Departure Date</label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <input
                     type="date"
                     value={filters.departure_date_from || ''}
                     onChange={(e) => updateFilter('departure_date_from', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-star-white text-sm focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+                    className="carbon-input text-sm"
                   />
-                  <span className="text-xs text-star-white/50 mt-1">From</span>
+                  <span className="text-xs text-[#6f6f6f] dark-theme-helper mt-1">From</span>
                 </div>
                 <div>
                   <input
                     type="date"
                     value={filters.departure_date_to || ''}
                     onChange={(e) => updateFilter('departure_date_to', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-star-white text-sm focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+                    className="carbon-input text-sm"
                   />
-                  <span className="text-xs text-star-white/50 mt-1">To</span>
+                  <span className="text-xs text-[#6f6f6f] dark-theme-helper mt-1">To</span>
                 </div>
               </div>
             </div>
 
             {/* Phase 1: Price Range */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-star-white">Price Range (Credits)</label>
+              <label className="text-sm font-medium text-[#161616] dark-theme-text">Price Range (Credits)</label>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
                   placeholder="Min"
                   value={filters.min_price || ''}
                   onChange={(e) => updateFilter('min_price', e.target.value ? parseInt(e.target.value) : undefined)}
-                  className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-star-white text-sm focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+                  className="carbon-input text-sm"
                 />
                 <input
                   type="number"
                   placeholder="Max"
                   value={filters.max_price || ''}
                   onChange={(e) => updateFilter('max_price', e.target.value ? parseInt(e.target.value) : undefined)}
-                  className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-star-white text-sm focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+                  className="carbon-input text-sm"
                 />
               </div>
             </div>
 
             {/* Phase 1: Seat Class */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-star-white">Seat Class</label>
+              <label className="text-sm font-medium text-[#161616] dark-theme-text">Seat Class</label>
               <div className="flex gap-2">
                 {['economy', 'business', 'galaxium'].map((seatClass) => (
                   <button
@@ -143,8 +147,8 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
                     onClick={() => updateFilter('seat_class', filters.seat_class === seatClass ? undefined : seatClass)}
                     className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       filters.seat_class === seatClass
-                        ? 'bg-cosmic-purple text-white'
-                        : 'bg-white/5 text-star-white/70 hover:bg-white/10'
+                        ? 'carbon-pill-button--active'
+                        : 'carbon-pill-button hover:bg-[#e8e8e8] dark:hover:bg-[#525252]'
                     }`}
                   >
                     {seatClass.charAt(0).toUpperCase() + seatClass.slice(1)}
@@ -155,7 +159,7 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
 
             {/* Phase 2: Time of Day */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-star-white">Time of Day</label>
+              <label className="text-sm font-medium text-[#161616] dark-theme-text">Time of Day</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { value: 'morning', label: 'Morning (6-12)' },
@@ -173,8 +177,8 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
                     }
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       filters.departure_time_period === period.value
-                        ? 'bg-cosmic-purple text-white'
-                        : 'bg-white/5 text-star-white/70 hover:bg-white/10'
+                        ? 'carbon-pill-button--active'
+                        : 'carbon-pill-button hover:bg-[#e8e8e8] dark:hover:bg-[#525252]'
                     }`}
                   >
                     {period.label}
@@ -185,28 +189,28 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
 
             {/* Phase 2: Duration */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-star-white">Flight Duration (hours)</label>
+              <label className="text-sm font-medium text-[#161616] dark-theme-text">Flight Duration (hours)</label>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
                   placeholder="Min"
                   value={filters.min_duration || ''}
                   onChange={(e) => updateFilter('min_duration', e.target.value ? parseInt(e.target.value) : undefined)}
-                  className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-star-white text-sm focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+                  className="carbon-input text-sm"
                 />
                 <input
                   type="number"
                   placeholder="Max"
                   value={filters.max_duration || ''}
                   onChange={(e) => updateFilter('max_duration', e.target.value ? parseInt(e.target.value) : undefined)}
-                  className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-star-white text-sm focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+                  className="carbon-input text-sm"
                 />
               </div>
             </div>
 
             {/* Phase 2: Minimum Seats */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-star-white">Minimum Seats Available</label>
+              <label className="text-sm font-medium text-[#161616] dark-theme-text">Minimum Seats Available</label>
               <input
                 type="number"
                 placeholder="e.g., 2"
@@ -214,13 +218,73 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
                 onChange={(e) =>
                   updateFilter('min_seats_available', e.target.value ? parseInt(e.target.value) : undefined)
                 }
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-star-white text-sm focus:outline-none focus:ring-2 focus:ring-cosmic-purple"
+                className="carbon-input text-sm"
               />
+            </div>
+
+            {/* Phase 4: Class-Specific Minimum Seats */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[#161616] dark-theme-text">Minimum Seats Per Class</label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Economy"
+                    min="0"
+                    value={filters.min_economy_seats || ''}
+                    onChange={(e) =>
+                      updateFilter('min_economy_seats', e.target.value ? parseInt(e.target.value) : undefined)
+                    }
+                    className="carbon-input text-sm border-[#a6c8ff]"
+                  />
+                  <span className="text-xs text-blue-400 dark-theme-blue-text mt-1">✈️ Economy</span>
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Business"
+                    min="0"
+                    value={filters.min_business_seats || ''}
+                    onChange={(e) =>
+                      updateFilter('min_business_seats', e.target.value ? parseInt(e.target.value) : undefined)
+                    }
+                    className="carbon-input text-sm border-[#d4bbff]"
+                  />
+                  <span className="text-xs text-purple-400 dark-theme-purple-text mt-1">👑 Business</span>
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Galaxium"
+                    min="0"
+                    value={filters.min_galaxium_seats || ''}
+                    onChange={(e) =>
+                      updateFilter('min_galaxium_seats', e.target.value ? parseInt(e.target.value) : undefined)
+                    }
+                    className="carbon-input text-sm border-[#a7f0ba]"
+                  />
+                  <span className="text-xs text-alien-green dark-theme-green-text mt-1">🚀 Galaxium</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Phase 4: Premium Only Toggle */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.premium_only || false}
+                  onChange={(e) => updateFilter('premium_only', e.target.checked || undefined)}
+                  className="w-4 h-4 rounded border-[#c6c6c6] bg-white text-[#0f62fe] focus:ring-2 focus:ring-[#0f62fe]"
+                />
+                <span className="text-sm font-medium text-[#161616] dark-theme-text">Premium Classes Only</span>
+                <span className="text-xs text-[#525252] dark-theme-subtle">(Business or Galaxium)</span>
+              </label>
             </div>
 
             {/* Phase 3: Route Categories */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-star-white">Route Category</label>
+              <label className="text-sm font-medium text-[#161616] dark-theme-text">Route Category</label>
               <div className="flex gap-2">
                 {[
                   { value: 'inner_planets', label: 'Inner Planets' },
@@ -234,8 +298,8 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
                     }
                     className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       filters.route_category === category.value
-                        ? 'bg-cosmic-purple text-white'
-                        : 'bg-white/5 text-star-white/70 hover:bg-white/10'
+                        ? 'carbon-pill-button--active'
+                        : 'carbon-pill-button hover:bg-[#e8e8e8] dark:hover:bg-[#525252]'
                     }`}
                   >
                     {category.label}
@@ -249,18 +313,18 @@ export const FlightFilters = ({ filters, onFiltersChange, onReset }: FlightFilte
 
       {/* Active Filters */}
       {activeFilterCount > 0 && (
-        <div className="flex flex-wrap gap-2 pt-4 border-t border-white/10">
+        <div className="flex flex-wrap gap-2 pt-4 border-t border-[#e0e0e0] dark-theme-border">
           {Object.entries(filters).map(([key, value]) => (
             <div
               key={key}
-              className="flex items-center gap-1 px-3 py-1 bg-cosmic-purple/20 text-cosmic-purple text-sm rounded-full"
+              className="flex items-center gap-1 px-3 py-1 carbon-pill text-sm rounded-full"
             >
               <span>
                 {key.replace(/_/g, ' ')}: {String(value)}
               </span>
               <button
                 onClick={() => removeFilter(key as keyof FlightFiltersType)}
-                className="hover:text-white transition-colors"
+                className="hover:text-[#161616] dark:hover:text-[#f4f4f4] transition-colors"
               >
                 <X size={14} />
               </button>
