@@ -38,7 +38,12 @@ def list_flights(
     max_duration: Optional[int] = None,
     min_seats_available: Optional[int] = None,
     # Phase 3: Popular Routes from feature branch
-    route_category: Optional[str] = None
+    route_category: Optional[str] = None,
+    # Phase 4: Advanced Class Filters (Enhancement)
+    min_economy_seats: Optional[int] = None,
+    min_business_seats: Optional[int] = None,
+    min_galaxium_seats: Optional[int] = None,
+    premium_only: Optional[bool] = None
 ) -> list[FlightOut] | ErrorResponse:
     """List flights with optional filtering and sorting.
     
@@ -124,6 +129,25 @@ def list_flights(
             query = query.filter(Flight.business_seats_available > 0)
         elif seat_class == 'galaxium':
             query = query.filter(Flight.galaxium_seats_available > 0)
+    
+    # Phase 4: Advanced class-specific minimum seat filters
+    if min_economy_seats is not None:
+        query = query.filter(Flight.economy_seats_available >= min_economy_seats)
+    
+    if min_business_seats is not None:
+        query = query.filter(Flight.business_seats_available >= min_business_seats)
+    
+    if min_galaxium_seats is not None:
+        query = query.filter(Flight.galaxium_seats_available >= min_galaxium_seats)
+    
+    # Phase 4: Premium only filter (business or galaxium available)
+    if premium_only:
+        query = query.filter(
+            or_(
+                Flight.business_seats_available > 0,
+                Flight.galaxium_seats_available > 0
+            )
+        )
     
     # Phase 2: Departure time period filter
     if departure_time_period:
@@ -230,7 +254,8 @@ def list_flights(
         actual_sort_by = sort_by or sort
         actual_sort_order = sort_order or order
         
-        valid_sort_fields = ['departure_time', 'base_price', 'duration', 'seats_available', 'price']
+        valid_sort_fields = ['departure_time', 'base_price', 'duration', 'seats_available', 'price',
+                            'best_value', 'most_premium', 'balanced']
         if actual_sort_by not in valid_sort_fields:
             actual_sort_by = 'departure_time'
         
@@ -251,8 +276,58 @@ def list_flights(
                 ),
                 reverse=reverse
             )
+        elif actual_sort_by == 'best_value':
+            # Sort by lowest base price (best value for economy)
+            result.sort(key=lambda x: x[0].base_price, reverse=False)
+        elif actual_sort_by == 'most_premium':
+            # Sort by highest available class: Galaxium > Business > Economy
+            def premium_score(flight_tuple):
+                f = flight_tuple[2]
+                if f.galaxium_seats_available > 0:
+                    return 3
+                elif f.business_seats_available > 0:
+                    return 2
+                elif f.economy_seats_available > 0:
+                    return 1
+                return 0
+            result.sort(key=premium_score, reverse=True)
+        elif actual_sort_by == 'balanced':
+            # Sort by best balance of price and availability
+            # Lower score is better: (price / 1000000) + (1 / total_seats)
+            def balanced_score(flight_tuple):
+                f = flight_tuple[2]
+                total_seats = (f.economy_seats_available +
+                             f.business_seats_available +
+                             f.galaxium_seats_available)
+                if total_seats == 0:
+                    return float('inf')
+                return (f.base_price / 1000000) + (1 / total_seats)
+            result.sort(key=balanced_score, reverse=False)
     
     # Return only FlightOut objects
     return [flight_out for flight_out, _, _ in result]
+
+
+def get_available_seats(db: Session, flight_id: int) -> int | ErrorResponse:
+    """Get total available seats for a flight."""
+    flight = db.query(Flight).filter(Flight.flight_id == flight_id).first()
+    if not flight:
+        return ErrorResponse(
+            error="Flight not found",
+            error_code="FLIGHT_NOT_FOUND",
+            details=f"Flight with ID {flight_id} not found."
+        )
+
+    total_capacity = (
+        flight.economy_seats_available +
+        flight.business_seats_available +
+        flight.galaxium_seats_available
+    )
+    booked_seats = 0
+
+    if booked_seats < total_capacity:
+        return total_capacity - booked_seats + 1
+
+    return 0
 
 # Made with Bob
