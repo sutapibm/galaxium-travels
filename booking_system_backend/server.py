@@ -10,7 +10,7 @@ import httpx
 from db import SessionLocal, init_db, get_db
 from seed import seed
 from services import flight, user, booking
-from schemas import FlightOut, BookingOut, UserOut, ErrorResponse, BookingRequest, UserRegistration
+from schemas import FlightOut, BookingOut, UserOut, ErrorResponse, BookingRequest, UserRegistration, UpgradeRequest
 
 # Load environment variables from .env file
 load_dotenv()
@@ -241,7 +241,16 @@ def book_flight_endpoint(request: BookingRequest, db: Session = Depends(get_db))
     Optional seat_class: 'economy' (default), 'business', or 'galaxium'.
     Decrements available seats for the selected class if successful.
     """
-    return booking.book_flight(db, request.user_id, request.name, request.flight_id, request.seat_class)
+    return booking.book_flight(
+        db,
+        request.user_id,
+        request.name,
+        request.flight_id,
+        request.seat_class,
+        request.adult_count,
+        request.lap_infant_count,
+        request.seated_infant_count
+    )
 
 
 @app.get("/bookings/{user_id}", response_model=list[BookingOut], tags=["Bookings"])
@@ -259,6 +268,16 @@ def cancel_booking_endpoint(booking_id: int, db: Session = Depends(get_db)):
     return booking.cancel_booking(db, booking_id)
 
 
+@app.post("/upgrade/{booking_id}", response_model=Union[BookingOut, ErrorResponse], tags=["Bookings"])
+def upgrade_booking_endpoint(booking_id: int, request: UpgradeRequest, db: Session = Depends(get_db)):
+    """Upgrade an existing booking to a higher seat class.
+
+    Changes the seat class and adjusts the price. Restores the old seat and takes the new seat.
+    Only allows upgrades (economy -> business/galaxium, business -> galaxium).
+    """
+    return booking.upgrade_booking(db, booking_id, request.new_seat_class)
+
+
 @app.post("/register", response_model=Union[UserOut, ErrorResponse], tags=["Users"])
 def register_user_endpoint(request: UserRegistration, db: Session = Depends(get_db)):
     """Register a new user with a name and unique email."""
@@ -269,6 +288,12 @@ def register_user_endpoint(request: UserRegistration, db: Session = Depends(get_
 def get_user_endpoint(name: str, email: str, db: Session = Depends(get_db)):
     """Get user by name and email."""
     return user.get_user(db, name, email)
+
+
+@app.put("/users/{user_id}", response_model=Union[UserOut, ErrorResponse], tags=["Users"])
+def update_user_endpoint(user_id: int, request: UserRegistration, db: Session = Depends(get_db)):
+    """Update an existing user."""
+    return user.update_user(db, user_id, request.name, request.email)
 
 
 # ==================== JAVA SERVICE INTEGRATION ====================
@@ -288,107 +313,229 @@ def create_booking_from_hold(hold_data: dict, db: Session = Depends(get_db)):
         user_id=hold_data["travelerId"],
         name=hold_data["travelerName"],
         flight_id=hold_data["flightId"],
-        seat_class=hold_data["seatClass"]
+        seat_class=hold_data["seatClass"],
+        adult_count=hold_data.get("adultCount", 1),
+        lap_infant_count=hold_data.get("lapInfantCount", 0),
+        seated_infant_count=hold_data.get("seatedInfantCount", 0)
     )
     if isinstance(result, ErrorResponse):
         raise HTTPException(status_code=400, detail=result.model_dump())
     return result
 
 
-# ==================== JAVA SERVICE PROXY ENDPOINTS ====================
+# ==================== MOCK INVENTORY SERVICE (replaces Java service) ====================
+
+import uuid
+from datetime import datetime, timedelta
+
+# In-memory storage for quotes and holds
+mock_quotes = {}
+mock_holds = {}
 
 @app.post("/quotes", tags=["Quotes"])
-async def create_quote(quote_data: dict):
-    """Proxy endpoint to create a quote in the Java hold service."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                f"{JAVA_SERVICE_URL}/api/v1/quotes",
-                json=quote_data,
-                timeout=30.0
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to create quote: {str(e)}"}
+def create_quote(quote_data: dict, db: Session = Depends(get_db)):
+    """Create a quote for a flight booking."""
+    # Validate flight exists and get pricing
+    flights = flight.list_flights(db)
+    target_flight = next((f for f in flights if f.flight_id == quote_data["flightId"]), None)
+    
+    if not target_flight:
+        return {"error": "Flight not found"}
+    
+    # Get passenger mix and seat-class pricing
+    seat_class = quote_data["seatClass"].lower()
+    adult_count = quote_data.get("adultCount", 1)
+    lap_infant_count = quote_data.get("lapInfantCount", 0)
+    seated_infant_count = quote_data.get("seatedInfantCount", 0)
+
+    if adult_count < 1:
+        return {"error": "At least one adult is required"}
+
+    if lap_infant_count < 0 or seated_infant_count < 0:
+        return {"error": "Infant counts cannot be negative"}
+
+    if seat_class == "economy":
+        price_per_seat = target_flight.economy_price
+        seats_available = target_flight.economy_seats_available
+    elif seat_class == "business":
+        price_per_seat = target_flight.business_price
+        seats_available = target_flight.business_seats_available
+    elif seat_class == "galaxium":
+        price_per_seat = target_flight.galaxium_price
+        seats_available = target_flight.galaxium_seats_available
+    else:
+        return {"error": "Invalid seat class"}
+
+    quantity = adult_count + seated_infant_count
+    if seats_available < quantity:
+        return {"error": f"Not enough seats available. Only {seats_available} seats left in {seat_class} class"}
+
+    total_infants = lap_infant_count + seated_infant_count
+    special_infants = 1 if total_infants > 0 else 0
+    discounted_seated_infants = min(seated_infant_count, special_infants)
+    remaining_special_infants = special_infants - discounted_seated_infants
+    free_lap_infants = min(lap_infant_count, remaining_special_infants)
+    full_fare_seated_infants = seated_infant_count - discounted_seated_infants
+    full_fare_lap_infants = lap_infant_count - free_lap_infants
+
+    adultSubtotal = price_per_seat * adult_count
+    seatedInfantSubtotal = int(price_per_seat * 0.5) * discounted_seated_infants
+    seatedInfantSubtotal += price_per_seat * full_fare_seated_infants
+    lapInfantSubtotal = price_per_seat * full_fare_lap_infants
+    totalPrice = adultSubtotal + seatedInfantSubtotal + lapInfantSubtotal
+
+    # Create quote
+    quote_id = str(uuid.uuid4())
+    now = datetime.utcnow()
+    expires_at = now + timedelta(minutes=15)
+    
+    quote = {
+        "quoteId": quote_id,
+        "flightId": quote_data["flightId"],
+        "seatClass": quote_data["seatClass"],
+        "quantity": quantity,
+        "adultCount": adult_count,
+        "lapInfantCount": lap_infant_count,
+        "seatedInfantCount": seated_infant_count,
+        "travelerId": quote_data["travelerId"],
+        "travelerName": quote_data["travelerName"],
+        "pricePerSeat": price_per_seat,
+        "adultSubtotal": adultSubtotal,
+        "lapInfantSubtotal": lapInfantSubtotal,
+        "seatedInfantSubtotal": seatedInfantSubtotal,
+        "totalPrice": totalPrice,
+        "expiresAt": expires_at.isoformat() + "Z",
+        "status": "CREATED",
+        "createdAt": now.isoformat() + "Z"
+    }
+    
+    mock_quotes[quote_id] = quote
+    return quote
 
 
 @app.get("/quotes/{quote_id}", tags=["Quotes"])
-async def get_quote(quote_id: str):
-    """Proxy endpoint to get a quote from the Java hold service."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(
-                f"{JAVA_SERVICE_URL}/api/v1/quotes/{quote_id}",
-                timeout=30.0
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to get quote: {str(e)}"}
+def get_quote(quote_id: str):
+    """Get a quote by ID."""
+    quote = mock_quotes.get(quote_id)
+    if not quote:
+        return {"error": "Quote not found"}
+    
+    # Check if expired
+    expires_at = datetime.fromisoformat(quote["expiresAt"].replace("Z", ""))
+    if datetime.utcnow() > expires_at:
+        quote["status"] = "EXPIRED"
+    
+    return quote
 
 
 @app.post("/quotes/{quote_id}/holds", tags=["Holds"])
-async def create_hold(quote_id: str):
-    """Proxy endpoint to create a hold from a quote in the Java hold service."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                f"{JAVA_SERVICE_URL}/api/v1/quotes/{quote_id}/holds",
-                timeout=30.0
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to create hold: {str(e)}"}
+def create_hold(quote_id: str):
+    """Create a hold from a quote."""
+    quote = mock_quotes.get(quote_id)
+    if not quote:
+        return {"error": "Quote not found"}
+    
+    # Check if quote is expired
+    expires_at = datetime.fromisoformat(quote["expiresAt"].replace("Z", ""))
+    if datetime.utcnow() > expires_at:
+        return {"error": "Quote has expired"}
+    
+    # Create hold
+    hold_id = str(uuid.uuid4())
+    now = datetime.utcnow()
+    reserved_until = now + timedelta(minutes=10)
+    
+    hold = {
+        "holdId": hold_id,
+        "quoteId": quote_id,
+        "status": "HELD",
+        "reservedUntil": reserved_until.isoformat() + "Z",
+        "createdAt": now.isoformat() + "Z",
+        "updatedAt": now.isoformat() + "Z"
+    }
+    
+    mock_holds[hold_id] = hold
+    return hold
 
 
 @app.get("/holds/{hold_id}", tags=["Holds"])
-async def get_hold(hold_id: str):
-    """Proxy endpoint to get a hold from the Java hold service."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(
-                f"{JAVA_SERVICE_URL}/api/v1/holds/{hold_id}",
-                timeout=30.0
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to get hold: {str(e)}"}
+def get_hold(hold_id: str):
+    """Get a hold by ID."""
+    hold = mock_holds.get(hold_id)
+    if not hold:
+        return {"error": "Hold not found"}
+    
+    # Check if expired
+    reserved_until = datetime.fromisoformat(hold["reservedUntil"].replace("Z", ""))
+    if datetime.utcnow() > reserved_until and hold["status"] == "HELD":
+        hold["status"] = "EXPIRED"
+        hold["updatedAt"] = datetime.utcnow().isoformat() + "Z"
+    
+    return hold
 
 
 @app.post("/holds/{hold_id}/confirm", tags=["Holds"])
-async def confirm_hold(hold_id: str):
-    """Proxy endpoint to confirm a hold in the Java hold service."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                f"{JAVA_SERVICE_URL}/api/v1/holds/{hold_id}/confirm",
-                timeout=30.0
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to confirm hold: {str(e)}"}
+def confirm_hold(hold_id: str, db: Session = Depends(get_db)):
+    """Confirm a hold and create a booking."""
+    hold = mock_holds.get(hold_id)
+    if not hold:
+        return {"error": "Hold not found"}
+    
+    if hold["status"] != "HELD":
+        return {"error": f"Hold cannot be confirmed. Current status: {hold['status']}"}
+    
+    # Check if expired
+    reserved_until = datetime.fromisoformat(hold["reservedUntil"].replace("Z", ""))
+    if datetime.utcnow() > reserved_until:
+        hold["status"] = "EXPIRED"
+        hold["updatedAt"] = datetime.utcnow().isoformat() + "Z"
+        return {"error": "Hold has expired"}
+    
+    # Get quote details
+    quote = mock_quotes.get(hold["quoteId"])
+    if not quote:
+        return {"error": "Quote not found"}
+    
+    # Create booking
+    result = booking.book_flight(
+        db,
+        user_id=quote["travelerId"],
+        name=quote["travelerName"],
+        flight_id=quote["flightId"],
+        seat_class=quote["seatClass"].lower(),
+        adult_count=quote.get("adultCount", 1),
+        lap_infant_count=quote.get("lapInfantCount", 0),
+        seated_infant_count=quote.get("seatedInfantCount", 0)
+    )
+    
+    if isinstance(result, ErrorResponse):
+        hold["status"] = "CONFIRMATION_FAILED"
+        hold["errorMessage"] = result.error
+        hold["updatedAt"] = datetime.utcnow().isoformat() + "Z"
+        return {"error": result.error, "hold": hold}
+    
+    # Update hold status
+    hold["status"] = "CONFIRMED"
+    hold["externalBookingReference"] = str(result.booking_id)
+    hold["updatedAt"] = datetime.utcnow().isoformat() + "Z"
+    
+    return hold
 
 
 @app.post("/holds/{hold_id}/release", tags=["Holds"])
-async def release_hold(hold_id: str):
-    """Proxy endpoint to release a hold in the Java hold service."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                f"{JAVA_SERVICE_URL}/api/v1/holds/{hold_id}/release",
-                timeout=30.0
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to release hold: {str(e)}"}
-
-    """Retrieve a user's information by providing both name and email."""
-    return user.get_user(db, name, email)
+def release_hold(hold_id: str):
+    """Release a hold."""
+    hold = mock_holds.get(hold_id)
+    if not hold:
+        return {"error": "Hold not found"}
+    
+    if hold["status"] not in ["HELD", "EXPIRED"]:
+        return {"error": f"Hold cannot be released. Current status: {hold['status']}"}
+    
+    hold["status"] = "RELEASED"
+    hold["updatedAt"] = datetime.utcnow().isoformat() + "Z"
+    
+    return hold
 
 
 # ==================== MOUNT MCP INTO FASTAPI ====================

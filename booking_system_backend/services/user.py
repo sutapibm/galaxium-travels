@@ -56,3 +56,21 @@ def get_user(db: Session, name: str, email: str) -> UserOut | ErrorResponse:
             details=f"User not found with name '{name}' and email '{email}'. The user may not be registered in our system. Please check the spelling of both name and email, or register the user first."
         )
     return UserOut.model_validate(user)
+
+
+def update_user(db: Session, user_id: int, name: str, email: str) -> UserOut | ErrorResponse:
+    """Update an existing user."""
+    existing_user = db.query(User).filter(User.user_id == user_id).first()
+    if not existing_user:
+        return ErrorResponse(
+            error="User not found",
+            error_code="USER_NOT_FOUND",
+            details=f"User with ID {user_id} not found."
+        )
+
+    existing_user.name = name
+    existing_user.email = email.lower()
+
+    db.commit()
+    db.refresh(existing_user)
+    return UserOut.model_validate(existing_user)
